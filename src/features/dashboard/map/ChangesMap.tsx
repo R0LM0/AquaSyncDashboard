@@ -7,8 +7,10 @@ import type { GeoJsonObject } from 'geojson'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import { NICARAGUA_HOME } from '@/domain/alcance'
 import { CHANGE_TYPE_COLORS, CHANGE_TYPE_LABELS } from '@/domain/labels'
 import type {
+  MapCenter,
   MapLayer,
   MapPoint,
   PredioLayerProperties,
@@ -17,10 +19,11 @@ import type {
 } from '@/domain/types'
 import { formatDateTime } from '@/shared/format'
 import { cn } from '@/lib/utils'
-import { BASE_LAYERS, NICARAGUA_BBOX, NICARAGUA_CENTER } from './mapLayers'
+import { BASE_LAYERS, NICARAGUA_BBOX } from './mapLayers'
 import { MapLegend } from './MapLegend'
 import { MapLayersPopover } from './MapLayersPopover'
 import type { BaseMap } from './mapPreferences'
+import { estadoOfProperties, predioPathStyle } from './predioStyle'
 import {
   bboxOfBounds,
   DEFAULT_LAYER_VISIBILITY,
@@ -232,7 +235,7 @@ function FocusController({
   return null
 }
 
-function MapControls() {
+function MapControls({ home, homeLabel }: { home: MapCenter; homeLabel: string }) {
   const map = useMap()
   const [fullscreen, setFullscreen] = useState(false)
 
@@ -253,10 +256,10 @@ function MapControls() {
     <div className="absolute right-3 top-3 z-[800] flex flex-col gap-1.5">
       <button
         type="button"
-        onClick={() => map.flyTo(NICARAGUA_CENTER, 7)}
+        onClick={() => map.flyTo([home.lat, home.lng], home.zoom)}
         className="grid size-9 place-items-center rounded-lg border border-border-subtle bg-surface/95 text-fg shadow-panel hover:text-primary"
-        aria-label="Centrar en Nicaragua"
-        title="Centrar en Nicaragua"
+        aria-label={homeLabel}
+        title={homeLabel}
       >
         <Target className="size-4" aria-hidden="true" />
       </button>
@@ -288,13 +291,6 @@ const SUCURSAL_STYLE = {
   fillOpacity: 1,
 }
 
-const PREDIO_STYLE = {
-  color: 'hsl(var(--primary) / 0.5)',
-  weight: 0.8,
-  fillColor: 'hsl(var(--primary) / 0.05)',
-  fillOpacity: 1,
-}
-
 export interface MapLayersProp {
   ugestiones?: MapLayer<UgestionLayerProperties>
   sucursales?: MapLayer<SucursalLayerProperties>
@@ -316,6 +312,10 @@ export interface ChangesMapProps {
   sucursalId?: string
   /** Only a change here re-frames the map: live events never do. */
   fitKey?: string
+  /** Where the map starts and returns to: the user's scope (Alcance.Mapa). */
+  home?: MapCenter
+  /** Label of the control that returns to `home`. */
+  homeLabel?: string
   onViewChange?: (view: MapView) => void
   onSelectAccount?: (cuenta: string) => void
 }
@@ -333,6 +333,8 @@ export function ChangesMap({
   ugestionId,
   sucursalId,
   fitKey = 'initial',
+  home = NICARAGUA_HOME,
+  homeLabel = 'Centrar en Nicaragua',
   onViewChange = NOOP,
   onSelectAccount = NOOP,
 }: ChangesMapProps) {
@@ -352,8 +354,8 @@ export function ChangesMap({
       data-zoom={view.zoom}
     >
       <MapContainer
-        center={NICARAGUA_CENTER}
-        zoom={7}
+        center={[home.lat, home.lng]}
+        zoom={home.zoom}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom
       >
@@ -381,7 +383,7 @@ export function ChangesMap({
             zoom={view.zoom}
           />
         </div>
-        <MapControls key="controls" />
+        <MapControls key="controls" home={home} homeLabel={homeLabel} />
 
         {visible.ugestiones && layers?.ugestiones ? (
           <GeoJSON
@@ -423,18 +425,23 @@ export function ChangesMap({
           <GeoJSON
             key={`predios-${predioKey}-${view.zoom}`}
             data={layers.predios.collection as unknown as GeoJsonObject}
-            style={PREDIO_STYLE}
+            style={(feature) =>
+              predioPathStyle(
+                estadoOfProperties(feature?.properties as Partial<PredioLayerProperties> | undefined),
+              )
+            }
             onEachFeature={(feature, layer) => {
               const properties = feature.properties as PredioLayerProperties | null
               if (!properties) return
 
+              const base = predioPathStyle(properties.estado)
               const html = predioPopupLines(properties)
                 .map(([label, value]) => `<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`)
                 .join('')
               layer.bindPopup(`<div class="predio-popup">${html}</div>`, { maxWidth: 260 })
               layer.on({
-                mouseover: () => (layer as L.Path).setStyle({ weight: 2, fillOpacity: 1 }),
-                mouseout: () => (layer as L.Path).setStyle(PREDIO_STYLE),
+                mouseover: () => (layer as L.Path).setStyle({ weight: 2, fillOpacity: 0.8 }),
+                mouseout: () => (layer as L.Path).setStyle(base),
               })
             }}
           />
@@ -451,7 +458,7 @@ export function ChangesMap({
       </MapContainer>
 
       <div className="absolute bottom-[42px] left-3 z-[800]">
-        <MapLegend />
+        <MapLegend predios={visible.predios} />
       </div>
     </div>
   )

@@ -13,10 +13,19 @@ describe('predio properties from the API', () => {
       idSucursal: 33,
       supTerreno: 250.5,
       supConst: 80,
+      estado: 'trabajado',
     })
 
     expect(props.nroLote).toBe('12')
     expect(props.idManzana).toBe('340')
+    expect(props.estado).toBe('trabajado')
+  })
+
+  it('maps every estado the API sends and keeps the typed value', () => {
+    const base = { id: 1, idPredio: 1, nroLote: null, idManzana: null, idUgestion: 4, idSucursal: 17, supTerreno: null, supConst: null }
+
+    expect(mapPredioProperties({ ...base, estado: 'vinculado' }).estado).toBe('vinculado')
+    expect(mapPredioProperties({ ...base, estado: 'sin_asociacion' }).estado).toBe('sin_asociacion')
   })
 
   it('keeps missing values as empty text and null surfaces, and the popup shows a dash', () => {
@@ -29,11 +38,13 @@ describe('predio properties from the API', () => {
       idSucursal: 33,
       supTerreno: null,
       supConst: undefined,
+      estado: 'sin_ubicacion',
     })
 
     expect(props.nroLote).toBe('')
     expect(props.supTerreno).toBeNull()
     expect(predioPopupLines(props)).toEqual([
+      ['Estado', 'Cuenta sin ubicación'],
       ['Lote', '—'],
       ['Manzana', '—'],
       ['Superficie terreno', '—'],

@@ -1,3 +1,4 @@
+import { ALCANCE_PAIS } from '@/domain/alcance'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from '@/App'
@@ -14,7 +15,7 @@ const SECTIONS = [
 ] as const
 
 function renderAt(path: string) {
-  saveSession({ token: 't', usuario: 'jmedina', nombre: 'José Medina' })
+  saveSession({ token: 't', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS })
   window.history.replaceState(null, '', path)
   const api = new MockDashboardApi({ today: new Date(2026, 9, 27) })
 

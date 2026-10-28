@@ -1,5 +1,9 @@
+import type { CascadeLevel } from '../../domain/cascade'
+import { ApiError } from '../../domain/errors'
 import type {
   AccountDetail,
+  Alcance,
+  CatalogOption,
   Catalogs,
   ChangeRow,
   ChangeType,
@@ -15,11 +19,28 @@ import type {
 
 /* The API answers in PascalCase; these DTOs mirror Docuemntacion/api-dashboard.md. */
 
+export interface AlcanceDto {
+  Pais: boolean
+  UgestionId?: number | null
+  UgestionNombre?: string | null
+  DptoId?: number | null
+  Sucursales?: number[] | null
+  Mapa: { Lat: number; Lng: number; Zoom: number }
+}
+
 export interface LoginDto {
   Token: string
   Usuario: string
   Nombre: string
   ExpiraEn: string
+  Alcance?: AlcanceDto | null
+}
+
+/** Cascade endpoints answer `{ Id, Nombre }` or `{ Valor }`, depending on the level. */
+export interface CascadeOptionDto {
+  Id?: number | null
+  Nombre?: string | null
+  Valor?: string | null
 }
 
 export interface CatalogsDto {
@@ -119,12 +140,46 @@ export function toChangeType(value: string): ChangeType {
 }
 
 export function mapSession(dto: LoginDto): Session {
+  if (!dto.Alcance) {
+    throw new ApiError('Su usuario no tiene alcance asignado en el dashboard', 403, 'Forbidden')
+  }
+
   return {
     token: dto.Token,
     usuario: dto.Usuario,
     nombre: dto.Nombre,
     expiraEn: dto.ExpiraEn,
+    alcance: mapAlcance(dto.Alcance),
   }
+}
+
+export function mapAlcance(dto: AlcanceDto): Alcance {
+  return {
+    pais: dto.Pais,
+    ugestionId: dto.UgestionId == null ? undefined : String(dto.UgestionId),
+    ugestionNombre: dto.UgestionNombre ?? undefined,
+    dptoId: dto.DptoId == null ? undefined : String(dto.DptoId),
+    sucursales: (dto.Sucursales ?? []).map(String),
+    mapa: { lat: dto.Mapa.Lat, lng: dto.Mapa.Lng, zoom: dto.Mapa.Zoom },
+  }
+}
+
+/**
+ * Cascade options. Departamento, unidad, ciudad and sucursal are identified by
+ * their numeric id; filial, zona and ruta by their SIGIL code (the name).
+ */
+export function mapCascadeOptions(
+  level: CascadeLevel,
+  dto: CascadeOptionDto[],
+): CatalogOption[] {
+  const codeIdentified = level === 'filial' || level === 'zona' || level === 'ruta'
+
+  return dto.flatMap((option) => {
+    const nombre = option.Nombre ?? option.Valor ?? (option.Id == null ? '' : String(option.Id))
+    const id = codeIdentified ? nombre : option.Id == null ? nombre : String(option.Id)
+    if (!id) return []
+    return [{ id, nombre }]
+  })
 }
 
 export function mapCatalogs(dto: CatalogsDto): Catalogs {
@@ -278,6 +333,7 @@ export interface PredioLayerPropertiesDto {
   idSucursal: number
   supTerreno: number | null
   supConst: number | null
+  estado?: string | null
 }
 
 /**

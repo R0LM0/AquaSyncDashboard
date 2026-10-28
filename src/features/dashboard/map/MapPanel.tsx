@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useDashboardApi } from '@/app/dashboardApiContext'
-import type { MapPoint } from '@/domain/types'
+import type { MapCenter, MapPoint } from '@/domain/types'
 import { ChangesMap } from './ChangesMap'
 import { NICARAGUA_BBOX } from './mapLayers'
 import {
@@ -18,6 +18,12 @@ export interface MapPanelProps {
   height?: number | string
   ugestionId?: string
   sucursalId?: string
+  /** Period of the filters: the predios "trabajado" state is measured on it. */
+  desde?: string
+  hasta?: string
+  /** Where the map starts (Alcance.Mapa of the user), and the label of its control. */
+  home?: MapCenter
+  homeLabel?: string
   /** Changes only when the filters change: live events must not re-frame the map. */
   fitKey?: string
   onSelectAccount: (cuenta: string) => void
@@ -41,6 +47,10 @@ export function MapPanel({
   height = 420,
   ugestionId,
   sucursalId,
+  desde,
+  hasta,
+  home,
+  homeLabel,
   fitKey = 'initial',
   onSelectAccount,
 }: MapPanelProps) {
@@ -52,6 +62,8 @@ export function MapPanel({
     api,
     ugestionId,
     sucursalId,
+    desde,
+    hasta,
     view,
     prediosEnabled: preferences.visible.predios,
   })
@@ -107,6 +119,8 @@ export function MapPanel({
         ugestionId={ugestionId}
         sucursalId={sucursalId}
         fitKey={fitKey}
+        home={home}
+        homeLabel={homeLabel}
         onViewChange={handleViewChange}
         onSelectAccount={onSelectAccount}
       />

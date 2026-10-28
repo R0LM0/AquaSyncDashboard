@@ -11,7 +11,9 @@ const PARAM_KEYS: ReadonlyArray<[keyof Filters, string]> = [
   ['desde', 'desde'],
   ['hasta', 'hasta'],
   ['tipoCambio', 'tipo'],
+  ['departamentoId', 'dpto'],
   ['ugestionId', 'ugestion'],
+  ['ciudadId', 'ciudad'],
   ['sucursalId', 'sucursal'],
   ['filial', 'filial'],
   ['zona', 'zona'],
@@ -49,7 +51,9 @@ export function paramsToFilters(params: URLSearchParams, fallback: DefaultRange)
   }
 
   const textFields: ReadonlyArray<[keyof Filters, string]> = [
+    ['departamentoId', 'dpto'],
     ['ugestionId', 'ugestion'],
+    ['ciudadId', 'ciudad'],
     ['sucursalId', 'sucursal'],
     ['filial', 'filial'],
     ['zona', 'zona'],

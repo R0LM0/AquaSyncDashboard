@@ -1,12 +1,14 @@
 import { useOutletContext } from 'react-router-dom'
 import type { DashboardData } from './useDashboardData'
 import type { DashboardApi } from '@/ports/DashboardApi'
-import type { ChangeRow, Filters, MapPoint, Page } from '@/domain/types'
+import type { Alcance, ChangeRow, Filters, MapPoint, Page } from '@/domain/types'
 import type { LiveChangesState } from './useLiveChanges'
 
 export interface SectionContextValue {
   api: DashboardApi
   filters: Filters
+  /** The user's scope: where the map starts. */
+  alcance: Alcance
   data?: DashboardData
   loading: boolean
   error?: string

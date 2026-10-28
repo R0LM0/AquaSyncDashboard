@@ -1,3 +1,4 @@
+import { ALCANCE_PAIS } from '@/domain/alcance'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -7,7 +8,7 @@ import type { Session } from '@/domain/types'
 import { DashboardLayout } from './DashboardLayout'
 import { useSectionContext } from './sectionContext'
 
-const session: Session = { token: 't', usuario: 'jmedina', nombre: 'José Medina' }
+const session: Session = { token: 't', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS }
 
 /** Stands in for a map click: the same call a marker makes. */
 function MapProbe() {

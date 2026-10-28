@@ -8,7 +8,7 @@ import { SectionSkeleton } from '../SectionSkeleton'
 import { EMPTY_SUMMARY } from './emptySummary'
 
 export default function MapaPage() {
-  const { data, loading, previousSummary, points, highlight, live, filters, openAccount, fitKey } =
+  const { data, loading, previousSummary, points, highlight, live, filters, alcance, openAccount, fitKey } =
     useSectionContext()
 
   if (loading) return <SectionSkeleton />
@@ -40,6 +40,10 @@ export default function MapaPage() {
               height="max(600px, calc(100vh - var(--app-chrome, 200px) - 32px))"
               ugestionId={filters.ugestionId}
               sucursalId={filters.sucursalId}
+              desde={filters.desde}
+              hasta={filters.hasta}
+              home={alcance.mapa}
+              homeLabel={alcance.pais ? 'Centrar en Nicaragua' : 'Centrar en mi zona'}
               fitKey={fitKey}
               onSelectAccount={openAccount}
             />

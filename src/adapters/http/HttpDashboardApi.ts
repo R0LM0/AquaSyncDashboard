@@ -6,10 +6,12 @@ import {
   type HubConnection,
 } from '@microsoft/signalr'
 import { dashboardHubUrl } from '../../app/apiUrl'
-import { ApiError, NotFoundError, SessionExpiredError } from '../../domain/errors'
+import type { CascadeLevel, CascadeParents } from '../../domain/cascade'
+import { ApiError, ForbiddenError, NotFoundError, SessionExpiredError } from '../../domain/errors'
 import type {
   AccountDetail,
   BBox,
+  CatalogOption,
   Catalogs,
   ChangeRow,
   DailyProgress,
@@ -29,6 +31,7 @@ import type {
 import type { DashboardApi, LiveStatus } from '../../ports/DashboardApi'
 import {
   mapAccountDetail,
+  mapCascadeOptions,
   mapCatalogs,
   mapChangesPage,
   mapDailyProgress,
@@ -39,6 +42,7 @@ import {
   mapSummary,
   mapUserRouteProgress,
   type AccountDetailDto,
+  type CascadeOptionDto,
   type CatalogsDto,
   type ChangesPageDto,
   type DailyProgressDto,
@@ -56,6 +60,21 @@ import { readEnvelopeParts, toQueryParams, unwrapData } from './envelope'
 
 /** Page size the API accepts for `cambios` (1..200). */
 export const MAX_PAGE_SIZE = 200
+
+/**
+ * Cascade endpoints and the parents each one takes, in the order of the query.
+ * Each level takes every parent of the levels above it.
+ */
+const CHAIN: Array<keyof CascadeParents> = ['dptoId', 'ugestionId', 'ciudadId', 'sucursalId']
+const CASCADE_ENDPOINTS: Record<CascadeLevel, { path: string; params: Array<keyof CascadeParents> }> = {
+  departamento: { path: 'departamentos', params: [] },
+  ugestion: { path: 'unidades-gestion', params: ['dptoId'] },
+  ciudad: { path: 'ciudades', params: ['ugestionId'] },
+  sucursal: { path: 'sucursales', params: ['ciudadId'] },
+  filial: { path: 'filiales', params: CHAIN },
+  zona: { path: 'zonas', params: [...CHAIN, 'filial'] },
+  ruta: { path: 'rutas', params: [...CHAIN, 'filial', 'zona'] },
+}
 
 interface Envelope<T> {
   data: T
@@ -95,6 +114,27 @@ export class HttpDashboardApi implements DashboardApi {
 
   async catalogs(): Promise<Catalogs> {
     return mapCatalogs(await this.get<CatalogsDto>('api/Dashboard/catalogos'))
+  }
+
+  async cascade(
+    level: CascadeLevel,
+    parents: CascadeParents,
+    signal?: AbortSignal,
+  ): Promise<CatalogOption[]> {
+    const endpoint = CASCADE_ENDPOINTS[level]
+    const params = new URLSearchParams()
+    for (const key of endpoint.params) {
+      params.set(key, parents[key] ?? '')
+    }
+
+    const query = params.toString()
+    const { data } = await this.requestEnvelope<CascadeOptionDto[]>(
+      `api/Dashboard/catalogos/${endpoint.path}${query ? `?${query}` : ''}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapCascadeOptions(level, data ?? [])
   }
 
   async summary(filters: Filters): Promise<Summary> {
@@ -189,6 +229,8 @@ export class HttpDashboardApi implements DashboardApi {
     })
     if (query.ugestionId) params.set('ugestionId', query.ugestionId)
     if (query.sucursalId) params.set('sucursalId', query.sucursalId)
+    if (query.desde) params.set('desde', query.desde)
+    if (query.hasta) params.set('hasta', query.hasta)
 
     const { data, message } = await this.requestEnvelope<LayerDto<PredioLayerPropertiesDto>>(
       `api/Dashboard/capas/predios?${params.toString()}`,
@@ -314,9 +356,9 @@ function toApiError(status: number, payload: unknown, mode: 'login' | 'authorize
     return new ApiError('Usuario o contraseña incorrectos', status, title)
   }
 
-  if ((status === 401 || status === 403) && mode === 'authorized') {
-    return new SessionExpiredError()
-  }
+  // 401 is an expired session. 403 is a request outside the user's scope: the session is still good.
+  if (status === 401 && mode === 'authorized') return new SessionExpiredError()
+  if (status === 403 && mode === 'authorized') return new ForbiddenError()
 
   if (status === 404) return new NotFoundError(message || title || 'Cuenta no encontrada')
 

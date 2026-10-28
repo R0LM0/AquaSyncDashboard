@@ -33,6 +33,14 @@ const loginDoc = {
     Usuario: 'jperez',
     Nombre: 'Juan Pérez',
     ExpiraEn: '2026-10-28T04:00:00Z',
+    Alcance: {
+      Pais: false,
+      UgestionId: 7,
+      UgestionNombre: 'UG MANAGUA',
+      DptoId: 2,
+      Sucursales: [12, 15],
+      Mapa: { Lat: 12.1364, Lng: -86.2514, Zoom: 12 },
+    },
   },
 }
 
@@ -188,6 +196,14 @@ describe('HttpDashboardApi login', () => {
       usuario: 'jperez',
       nombre: 'Juan Pérez',
       expiraEn: '2026-10-28T04:00:00Z',
+      alcance: {
+        pais: false,
+        ugestionId: '7',
+        ugestionNombre: 'UG MANAGUA',
+        dptoId: '2',
+        sucursales: ['12', '15'],
+        mapa: { lat: 12.1364, lng: -86.2514, zoom: 12 },
+      },
     })
 
     const { url, init } = lastCall(fetchMock)
@@ -388,7 +404,8 @@ describe('HttpDashboardApi errors', () => {
     expect(error).not.toBeInstanceOf(SessionExpiredError)
   })
 
-  it.each([401, 403])('expires the session on a %i outside login', async (status) => {
+  it('expires the session on a 401 outside login', async () => {
+    const status = 401
     stubFetch({ Status: status, Title: 'Unauthorized' }, status)
 
     await expect(new HttpDashboardApi(API, 't').summary(filters)).rejects.toBeInstanceOf(

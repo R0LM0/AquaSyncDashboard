@@ -18,6 +18,9 @@ export interface Filters {
   desde: string
   hasta: string
   tipoCambio?: ChangeType
+  /** Cascade-only levels: they narrow the catalogs, never the report queries. */
+  departamentoId?: string
+  ciudadId?: string
 }
 
 export interface CatalogOption {
@@ -47,12 +50,34 @@ export interface Catalogs {
   usuarios: CatalogOption[]
 }
 
+/** Map centre and zoom the user starts from (Alcance.Mapa). */
+export interface MapCenter {
+  lat: number
+  lng: number
+  zoom: number
+}
+
+/**
+ * What SIGIL assigns to the user. A country user (`pais`) sees everything; a
+ * restricted one is fixed to its departamento and unidad de gestión, and to its
+ * sucursales when the list is not empty.
+ */
+export interface Alcance {
+  pais: boolean
+  ugestionId?: string
+  ugestionNombre?: string
+  dptoId?: string
+  sucursales: string[]
+  mapa: MapCenter
+}
+
 export interface Session {
   token: string
   usuario: string
   nombre: string
   /** UTC instant when the token expires, when the API reports it. */
   expiraEn?: string
+  alcance: Alcance
 }
 
 export interface Summary {
@@ -182,6 +207,9 @@ export interface SucursalLayerProperties {
   ugestionId: number
 }
 
+/** Account state of a predio, as the API reports it (`estado`). */
+export type PredioEstado = 'trabajado' | 'vinculado' | 'sin_ubicacion' | 'sin_asociacion'
+
 export interface PredioLayerProperties {
   id: number
   idPredio: number
@@ -191,6 +219,7 @@ export interface PredioLayerProperties {
   idSucursal: number
   supTerreno: number | null
   supConst: number | null
+  estado: PredioEstado
 }
 
 export interface PrediosQuery {
@@ -198,6 +227,9 @@ export interface PrediosQuery {
   zoom: number
   ugestionId?: string
   sucursalId?: string
+  /** Period the "trabajado" state is measured on; the API default is the last 30 days. */
+  desde?: string
+  hasta?: string
 }
 
 /* ------------------------------------------------------------ account detail */

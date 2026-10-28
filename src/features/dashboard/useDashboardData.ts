@@ -9,7 +9,7 @@ import type {
   Summary,
   UserRouteProgress,
 } from '../../domain/types'
-import { isSessionExpired } from '../../domain/errors'
+import { isForbidden, isSessionExpired } from '../../domain/errors'
 import type { DashboardApi } from '../../ports/DashboardApi'
 
 export interface DashboardData {
@@ -31,14 +31,16 @@ interface DashboardState {
 }
 
 /**
- * Loads every non paginated view for the active filters. A 401/403 outside login
- * means the session is gone: the caller closes it instead of showing an error.
+ * Loads every non paginated view for the active filters. A 401 outside login means
+ * the session is gone: the caller closes it. A 403 means the filters asked for data
+ * outside the user's scope: the message is shown and `onForbidden` resets the scope.
  */
 export function useDashboardData(
   api: DashboardApi,
   filters: Filters,
   refreshToken: number,
   onSessionExpired?: () => void,
+  onForbidden?: () => void,
 ) {
   const [state, setState] = useState<DashboardState>({ status: 'loading', loadedAt: 0 })
   const filtersKey = JSON.stringify(filters)
@@ -69,6 +71,7 @@ export function useDashboardData(
           onSessionExpired?.()
           return
         }
+        if (isForbidden(error)) onForbidden?.()
         setState((previous) => ({
           status: 'error',
           data: previous.data,
@@ -82,7 +85,7 @@ export function useDashboardData(
     return () => {
       cancelled = true
     }
-  }, [api, filtersKey, refreshToken, onSessionExpired])
+  }, [api, filtersKey, refreshToken, onSessionExpired, onForbidden])
 
   return state
 }

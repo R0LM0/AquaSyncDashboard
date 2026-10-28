@@ -1,14 +1,19 @@
-import { NotFoundError } from '../../domain/errors'
+import { ALCANCE_PAIS } from '../../domain/alcance'
+import type { CascadeLevel, CascadeParents } from '../../domain/cascade'
+import { ForbiddenError, NotFoundError } from '../../domain/errors'
 import type {
+  Alcance,
   AccountDetail,
   AccountHistoryEntry,
   AccountMeta,
   AccountPhoto,
+  CatalogOption,
   ChangeRow,
   DailyProgress,
   Filters,
   MapLayer,
   MapPoint,
+  PredioEstado,
   PredioLayerProperties,
   PrediosQuery,
   SucursalLayerProperties,
@@ -21,6 +26,7 @@ import { dateKeyOf, isWithinRange } from '../../shared/dates'
 import {
   buildLiveEvent,
   buildMockDataset,
+  rutaSucursal,
   type MockDataset,
   type MockEvent,
 } from './data'
@@ -37,6 +43,20 @@ import {
   predioRing,
   ringFromBbox,
 } from './layers'
+import { assertWithinScope, cascadeOptions, enforceScope } from './scope'
+
+/** The restricted user of the mock: Madriz, unidad 4, whole unit (no sucursal list). */
+export const DSORIANO_ALCANCE: Alcance = {
+  pais: false,
+  ugestionId: '4',
+  ugestionNombre: 'Unidad de Gestión Madriz',
+  dptoId: '4',
+  sucursales: [],
+  mapa: { lat: 13.48, lng: -86.47, zoom: 11 },
+}
+
+/** Static states of the predios that the period did not work (deterministic, by index). */
+const STATIC_ESTADOS: readonly PredioEstado[] = ['vinculado', 'sin_ubicacion', 'sin_asociacion']
 
 export interface MockDashboardApiOptions {
   /** Anchor day for the generated history. Defaults to today. */
@@ -60,6 +80,8 @@ export class MockDashboardApi implements DashboardApi {
   private readonly ugestionLayers = new Map<string, MapLayer<UgestionLayerProperties>>()
   private readonly sucursalLayers = new Map<string, MapLayer<SucursalLayerProperties>>()
   private readonly predioRings = new Map<string, Array<[number, number]>>()
+  /** Scope of the logged-in user: country by default, as the real API. */
+  private scope: Alcance = ALCANCE_PAIS
 
   constructor(options: MockDashboardApiOptions = {}) {
     this.dataset = buildMockDataset(options.today ?? new Date())
@@ -91,19 +113,46 @@ export class MockDashboardApi implements DashboardApi {
     }
 
     const known = this.dataset.catalogs.usuarios.find((option) => option.id === usuario)
+    this.scope = usuario === 'dsoriano' ? DSORIANO_ALCANCE : ALCANCE_PAIS
 
     return {
       token: `mock-token-${usuario}`,
       usuario,
       nombre: known?.nombre ?? usuario,
+      alcance: structuredClone(this.scope),
     }
   }
 
   async catalogs() {
-    return structuredClone(this.dataset.catalogs)
+    const all = structuredClone(this.dataset.catalogs)
+    if (this.scope.pais) return all
+
+    // A restricted user only sees the options of its unidad.
+    const unidad = this.scope.ugestionId
+    const sucursales = all.sucursales.filter((option) => option.ugestionId === unidad)
+    const rutas = all.rutas.filter((ruta) => sucursales.some((sucursal) => this.rutaInSucursal(ruta.id, sucursal.id)))
+    return {
+      ...all,
+      ugestiones: all.ugestiones.filter((option) => option.id === unidad),
+      sucursales,
+      filiales: all.filiales.filter((option) => rutas.some((ruta) => ruta.filial === option.nombre)),
+      zonas: all.zonas.filter((option) => rutas.some((ruta) => ruta.zona === option.nombre)),
+      rutas,
+    }
   }
 
-  async summary(filters: Filters): Promise<Summary> {
+  /** One level of the SIGIL cascade, scope-aware. */
+  async cascade(
+    level: CascadeLevel,
+    parents: CascadeParents,
+    signal?: AbortSignal,
+  ): Promise<CatalogOption[]> {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return cascadeOptions(this.dataset.catalogs, this.scope, level, parents)
+  }
+
+  async summary(input: Filters): Promise<Summary> {
+    const filters = enforceScope(input, this.scope)
     const events = this.matchingEvents(filters)
     const worked = new Set(events.map((event) => event.cuenta))
     const countType = (tipo: string) =>
@@ -126,8 +175,9 @@ export class MockDashboardApi implements DashboardApi {
     }
   }
 
-  async dailyProgress(filters: Filters): Promise<DailyProgress[]> {
+  async dailyProgress(input: Filters): Promise<DailyProgress[]> {
     const buckets = new Map<string, DailyProgress>()
+    const filters = enforceScope(input, this.scope)
 
     for (const event of this.matchingEvents(filters)) {
       const fecha = dateKeyOf(event.fecha)
@@ -148,8 +198,9 @@ export class MockDashboardApi implements DashboardApi {
     return [...buckets.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
   }
 
-  async userRouteProgress(filters: Filters): Promise<UserRouteProgress[]> {
+  async userRouteProgress(input: Filters): Promise<UserRouteProgress[]> {
     const rows = new Map<string, UserRouteProgress & { cuentas: Set<string> }>()
+    const filters = enforceScope(input, this.scope)
 
     for (const event of this.matchingEvents(filters)) {
       const meta = this.meta.get(event.cuenta)
@@ -184,7 +235,8 @@ export class MockDashboardApi implements DashboardApi {
       .sort((a, b) => a.usuario.localeCompare(b.usuario))
   }
 
-  async mapPoints(filters: Filters): Promise<MapPoint[]> {
+  async mapPoints(input: Filters): Promise<MapPoint[]> {
+    const filters = enforceScope(input, this.scope)
     const latest = new Map<string, MockEvent>()
     for (const event of this.matchingEvents(filters)) {
       const current = latest.get(event.cuenta)
@@ -208,8 +260,8 @@ export class MockDashboardApi implements DashboardApi {
     })
   }
 
-  async changes(filters: Filters, page: number, pageSize: number) {
-    const rows = this.matchingEvents(filters)
+  async changes(input: Filters, page: number, pageSize: number) {
+    const rows = this.matchingEvents(enforceScope(input, this.scope))
       .map((event) => this.toRow(event))
       .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
@@ -223,9 +275,10 @@ export class MockDashboardApi implements DashboardApi {
   }
 
   async layerUgestiones(
-    ugestionId?: string,
+    requested?: string,
     signal?: AbortSignal,
   ): Promise<MapLayer<UgestionLayerProperties>> {
+    const ugestionId = this.scopedUgestion(requested)
     const key = ugestionId ?? 'all'
     const cached = this.ugestionLayers.get(key)
     if (cached) return cached
@@ -254,9 +307,10 @@ export class MockDashboardApi implements DashboardApi {
   }
 
   async layerSucursales(
-    ugestionId?: string,
+    requested?: string,
     signal?: AbortSignal,
   ): Promise<MapLayer<SucursalLayerProperties>> {
+    const ugestionId = this.scopedUgestion(requested)
     const key = ugestionId ?? 'all'
     const cached = this.sucursalLayers.get(key)
     if (cached) return cached
@@ -291,11 +345,13 @@ export class MockDashboardApi implements DashboardApi {
   ): Promise<MapLayer<PredioLayerProperties>> {
     if (query.zoom < PREDIOS_MIN_ZOOM) return emptyLayer('Acerque el mapa para ver predios')
 
+    const ugestionId = this.scopedUgestion(query.ugestionId)
+    const worked = this.workedAccounts(query.desde, query.hasta)
     const random = createRandom(90_003)
     const matches = this.dataset.accounts.filter((account) => {
       const meta = this.meta.get(account.cuenta)
       if (!meta) return false
-      if (query.ugestionId && meta.ugestionId !== query.ugestionId) return false
+      if (ugestionId && meta.ugestionId !== ugestionId) return false
       if (query.sucursalId && meta.sucursalId !== query.sucursalId) return false
 
       return intersects(bboxOfRing(this.ringFor(meta.cuenta, meta.lat, meta.lng, random)), query.bbox)
@@ -315,6 +371,7 @@ export class MockDashboardApi implements DashboardApi {
         idSucursal: Number(meta.sucursalId ?? 0),
         supTerreno: Number((180 + (index % 30) * 12.5).toFixed(1)),
         supConst: Number((60 + (index % 18) * 8.25).toFixed(1)),
+        estado: worked.has(account.cuenta) ? 'trabajado' : STATIC_ESTADOS[index % STATIC_ESTADOS.length],
       })
     })
 
@@ -328,6 +385,9 @@ export class MockDashboardApi implements DashboardApi {
   async accountDetail(cuenta: string, signal?: AbortSignal): Promise<AccountDetail> {
     const meta = this.meta.get(cuenta)
     if (!meta) throw new NotFoundError()
+    if (!this.scope.pais && meta.ugestionId !== this.scope.ugestionId) {
+      throw new ForbiddenError('No tiene acceso a esa cuenta')
+    }
 
     const events = this.dataset.events
       .filter((event) => event.cuenta === cuenta)
@@ -395,8 +455,8 @@ export class MockDashboardApi implements DashboardApi {
     return ring
   }
 
-  async allChanges(filters: Filters): Promise<ChangeRow[]> {
-    return this.matchingEvents(filters)
+  async allChanges(input: Filters): Promise<ChangeRow[]> {
+    return this.matchingEvents(enforceScope(input, this.scope))
       .map((event) => this.toRow(event))
       .sort((a, b) => b.fecha.localeCompare(a.fecha))
   }
@@ -429,7 +489,9 @@ export class MockDashboardApi implements DashboardApi {
         lat: meta?.lat,
         lng: meta?.lng,
       }
-      for (const listener of [...this.listeners]) listener(change)
+      // A restricted user is only pushed the changes of its unidad, as the server hub does.
+      const visible = this.scope.pais || meta?.ugestionId === this.scope.ugestionId
+      if (visible) for (const listener of [...this.listeners]) listener(change)
 
       this.scheduleLiveEvent()
     }, randomInt(this.liveRandom, LIVE_DELAY_MIN_MS, LIVE_DELAY_MAX_MS))
@@ -440,6 +502,22 @@ export class MockDashboardApi implements DashboardApi {
       clearTimeout(this.timer)
       this.timer = undefined
     }
+  }
+
+  /** A layer the user asks for is either its own unidad, or the whole country for admins. */
+  private scopedUgestion(requested?: string): string | undefined {
+    assertWithinScope({ ugestionId: requested }, this.scope)
+    return this.scope.pais ? requested : this.scope.ugestionId
+  }
+
+  private rutaInSucursal(rutaId: string, sucursalId: string): boolean {
+    return rutaSucursal[rutaId] === sucursalId
+  }
+
+  /** Accounts with a change in the period: their predio is "trabajado". */
+  private workedAccounts(desde?: string, hasta?: string): Set<string> {
+    const period = { desde: desde ?? '0001-01-01', hasta: hasta ?? '9999-12-31' }
+    return new Set(this.matchingEvents({ ...period }).map((event) => event.cuenta))
   }
 
   private countAccounts(ruta: string): number {

@@ -1,4 +1,5 @@
 import type { BBox, PredioLayerProperties } from '@/domain/types'
+import { predioEstadoLabel } from './predioStyle'
 
 /** The API starts answering lots from this zoom. */
 export const PREDIOS_MIN_ZOOM = 15
@@ -49,6 +50,7 @@ const surface = (value: number | null): string =>
 
 export function predioPopupLines(properties: PredioLayerProperties): Array<[string, string]> {
   return [
+    ['Estado', predioEstadoLabel(properties.estado)],
     ['Lote', properties.nroLote || '—'],
     ['Manzana', properties.idManzana || '—'],
     ['Superficie terreno', surface(properties.supTerreno)],

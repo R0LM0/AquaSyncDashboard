@@ -1,5 +1,7 @@
+import type { CascadeLevel, CascadeParents } from '../domain/cascade'
 import type {
   AccountDetail,
+  CatalogOption,
   Catalogs,
   ChangeRow,
   DailyProgress,
@@ -26,6 +28,11 @@ export type LiveStatus = 'live' | 'reconnecting' | 'offline'
 export interface DashboardApi {
   login(usuario: string, password: string): Promise<Session>
   catalogs(): Promise<Catalogs>
+  /**
+   * One level of the SIGIL cascade (departamento → … → ruta), for the parents the
+   * level needs. Scope-aware: a restricted user only receives its own options.
+   */
+  cascade(level: CascadeLevel, parents: CascadeParents, signal?: AbortSignal): Promise<CatalogOption[]>
   summary(filters: Filters): Promise<Summary>
   dailyProgress(filters: Filters): Promise<DailyProgress[]>
   userRouteProgress(filters: Filters): Promise<UserRouteProgress[]>

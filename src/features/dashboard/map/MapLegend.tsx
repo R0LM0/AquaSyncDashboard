@@ -2,12 +2,19 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { CHANGE_TYPE_COLORS, CHANGE_TYPE_LABELS, CHANGE_TYPES } from '@/domain/labels'
 import { cn } from '@/lib/utils'
+import { PREDIO_ESTADOS_ORDER, PREDIO_ESTADO_STYLES } from './predioStyle'
 
 /**
  * Single source of colours: the map, the charts and this legend agree.
  * It collapses into a chip so it never crowds the map.
  */
-export function MapLegend({ defaultOpen = true }: { defaultOpen?: boolean }) {
+export interface MapLegendProps {
+  defaultOpen?: boolean
+  /** Adds the predio states; shown only while the Predios layer is on. */
+  predios?: boolean
+}
+
+export function MapLegend({ defaultOpen = true, predios = false }: MapLegendProps) {
   const [open, setOpen] = useState(defaultOpen)
 
   if (!open) {
@@ -50,6 +57,28 @@ export function MapLegend({ defaultOpen = true }: { defaultOpen?: boolean }) {
           </li>
         ))}
       </ul>
+
+      {predios ? (
+        <section className="mt-2 border-t border-border-subtle pt-1.5" aria-label="Predios">
+          <h3 className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">Predios</h3>
+          <ul className="flex flex-col gap-1 text-[10px] font-semibold text-muted-fg">
+            {PREDIO_ESTADOS_ORDER.map((estado) => (
+              <li key={estado} className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-sm border"
+                  style={{
+                    background: PREDIO_ESTADO_STYLES[estado].fill,
+                    borderColor: PREDIO_ESTADO_STYLES[estado].stroke,
+                  }}
+                  data-testid={`legend-predio-${estado}`}
+                  aria-hidden="true"
+                />
+                {PREDIO_ESTADO_STYLES[estado].label}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   )
 }

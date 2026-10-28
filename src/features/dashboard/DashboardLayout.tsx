@@ -11,13 +11,13 @@ import {
 } from '@/app/runtimeEnvironment'
 import { useTheme } from '@/app/theme'
 import { Button } from '@/components/ui/button'
-import { sanitizeFilters } from '@/domain/catalogs'
+import { applyFilterPatch, scopedFilters } from '@/domain/cascade'
 import { liveDeltaSince, livePointsSince } from '@/domain/live'
 import type { Filters, Session } from '@/domain/types'
 import { lastDaysRange } from '@/shared/dates'
 import { cn } from '@/lib/utils'
-import { FilterBar } from './filters/FilterBar'
 import { filtersToParams, paramsToFilters } from './filters/filtersUrl'
+import { useCascadeOptions } from './filters/useCascadeOptions'
 import { SectionSkeleton } from './SectionSkeleton'
 import { AccountPanel } from './account/AccountPanel'
 import { Sidebar } from './Sidebar'
@@ -28,6 +28,11 @@ import { useChangesPage, useDashboardData, useRefreshToken } from './useDashboar
 import { useLiveChanges } from './useLiveChanges'
 import { usePreviousSummary } from './usePreviousSummary'
 import { useReportExport } from './report/useReportExport'
+
+// The filter panel (searchable selects on a popover) is its own chunk: it keeps the entry small.
+const FilterBar = lazy(() =>
+  import('./filters/FilterBar').then((module) => ({ default: module.FilterBar })),
+)
 
 // Snapshot charts for the PDF: mounted only while a report is being built.
 const ExportCharts = lazy(() =>
@@ -50,7 +55,11 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const [searchParams, setSearchParams] = useSearchParams()
   const defaultRange = useMemo(() => lastDaysRange(DAYS_IN_RANGE), [])
   const search = searchParams.toString()
-  const filters = useMemo(() => paramsToFilters(new URLSearchParams(search), defaultRange), [search, defaultRange])
+  // The scope is applied to every read of the URL: a restricted user never leaves its unidad.
+  const filters = useMemo(
+    () => scopedFilters(paramsToFilters(new URLSearchParams(search), defaultRange), session.alcance),
+    [search, defaultRange, session.alcance],
+  )
 
   const [pageNumber, setPageNumber] = useState(1)
   const [refreshToken, bumpRefresh] = useRefreshToken()
@@ -60,7 +69,14 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const chromeRef = useRef<HTMLDivElement | null>(null)
   const { theme, toggleTheme } = useTheme()
 
-  const data = useDashboardData(api, filters, refreshToken, onLogout)
+  // "Limpiar" and a 403 both go back to the scope of the user, never to the whole country.
+  const resetFilters = useCallback(() => {
+    setPageNumber(1)
+    setSearchParams(filtersToParams(scopedFilters(defaultRange, session.alcance)), { replace: true })
+  }, [defaultRange, session.alcance, setSearchParams])
+
+  const data = useDashboardData(api, filters, refreshToken, onLogout, resetFilters)
+  const cascade = useCascadeOptions(api, filters, onLogout)
   const changes = useChangesPage(api, filters, pageNumber, PAGE_SIZE, refreshToken, onLogout)
   const live = useLiveChanges({ api, filters, onRefresh: bumpRefresh })
   const previousSummary = usePreviousSummary(api, filters, refreshToken, onLogout)
@@ -143,17 +159,10 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const patchFilters = useCallback(
     (patch: Partial<Filters>) => {
       setPageNumber(1)
-      const merged = { ...filters, ...patch }
-      const next = catalogs ? sanitizeFilters(merged, catalogs) : merged
-      setSearchParams(filtersToParams(next), { replace: true })
+      setSearchParams(filtersToParams(applyFilterPatch(filters, patch, session.alcance)), { replace: true })
     },
-    [catalogs, filters, setSearchParams],
+    [filters, session.alcance, setSearchParams],
   )
-
-  const resetFilters = useCallback(() => {
-    setPageNumber(1)
-    setSearchParams(filtersToParams(defaultRange), { replace: true })
-  }, [defaultRange, setSearchParams])
 
   const openAccount = useCallback((cuenta: string) => setSelectedAccount(cuenta), [])
   const closeAccount = useCallback(() => setSelectedAccount(null), [])
@@ -198,6 +207,7 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const context: SectionContextValue = {
     api,
     filters,
+    alcance: session.alcance,
     data: data.data,
     loading: !data.data,
     error: data.error,
@@ -268,21 +278,15 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
               onOpenMenu={() => setMenuOpen(true)}
             />
 
-            <FilterBar
-              filters={filters}
-              catalogs={
-                catalogs ?? {
-                  ugestiones: [],
-                  sucursales: [],
-                  filiales: [],
-                  zonas: [],
-                  rutas: [],
-                  usuarios: [],
-                }
-              }
-              onChange={patchFilters}
-              onReset={resetFilters}
-            />
+            <Suspense fallback={null}>
+              <FilterBar
+                filters={filters}
+                options={{ ...cascade, usuarios: catalogs?.usuarios ?? [] }}
+                alcance={session.alcance}
+                onChange={patchFilters}
+                onReset={resetFilters}
+              />
+            </Suspense>
           </div>
 
           {report.chartsActive ? (

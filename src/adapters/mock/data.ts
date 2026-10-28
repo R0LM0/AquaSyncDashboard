@@ -1,4 +1,4 @@
-import type { Catalogs, ChangeType } from '../../domain/types'
+import type { Catalogs, CatalogOption, ChangeType } from '../../domain/types'
 import { localDateKey } from '../../shared/dates'
 import { createRandom, pick, randomInt, weightedPick } from './random'
 
@@ -38,6 +38,7 @@ const cities = {
   masaya: { lat: 11.9744, lng: -86.0942 },
   granada: { lat: 11.9299, lng: -85.956 },
   matagalpa: { lat: 12.9256, lng: -85.9175 },
+  somoto: { lat: 13.4833, lng: -86.5833 },
 } as const
 
 const clients = [
@@ -87,6 +88,7 @@ function buildCatalogs(): Catalogs {
       { id: '1', nombre: 'Unidad de Gestión Managua' },
       { id: '2', nombre: 'Unidad de Gestión Occidente' },
       { id: '3', nombre: 'Unidad de Gestión Norte' },
+      { id: '4', nombre: 'Unidad de Gestión Madriz' },
     ],
     sucursales: [
       { id: '101', nombre: 'Sucursal Managua', ugestionId: '1' },
@@ -95,6 +97,7 @@ function buildCatalogs(): Catalogs {
       { id: '201', nombre: 'Sucursal León', ugestionId: '2' },
       { id: '202', nombre: 'Sucursal Chinandega', ugestionId: '2' },
       { id: '301', nombre: 'Sucursal Matagalpa', ugestionId: '3' },
+      { id: '401', nombre: 'Sucursal Somoto', ugestionId: '4' },
     ],
     filiales: [
       { id: 'FL-MGA', nombre: 'Filial Managua' },
@@ -103,6 +106,7 @@ function buildCatalogs(): Catalogs {
       { id: 'FL-MAS', nombre: 'Filial Masaya' },
       { id: 'FL-GRA', nombre: 'Filial Granada' },
       { id: 'FL-MAT', nombre: 'Filial Matagalpa' },
+      { id: '590', nombre: '590' },
     ],
     zonas: [
       { id: 'Z-MGA-1', nombre: 'Zona Managua Centro', filial: 'Filial Managua' },
@@ -112,6 +116,7 @@ function buildCatalogs(): Catalogs {
       { id: 'Z-MAS-1', nombre: 'Zona Masaya Centro', filial: 'Filial Masaya' },
       { id: 'Z-GRA-1', nombre: 'Zona Granada Centro', filial: 'Filial Granada' },
       { id: 'Z-MAT-1', nombre: 'Zona Matagalpa Centro', filial: 'Filial Matagalpa' },
+      { id: 'Z-SOM-1', nombre: 'Zona Somoto Centro', filial: '590' },
     ],
     rutas: [
       { id: 'RT-MGA-01', nombre: 'Ruta MGA-01', filial: 'Filial Managua', zona: 'Zona Managua Centro' },
@@ -122,6 +127,8 @@ function buildCatalogs(): Catalogs {
       { id: 'RT-MAS-01', nombre: 'Ruta MAS-01', filial: 'Filial Masaya', zona: 'Zona Masaya Centro' },
       { id: 'RT-GRA-01', nombre: 'Ruta GRA-01', filial: 'Filial Granada', zona: 'Zona Granada Centro' },
       { id: 'RT-MAT-01', nombre: 'Ruta MAT-01', filial: 'Filial Matagalpa', zona: 'Zona Matagalpa Centro' },
+      { id: 'RT-SOM-01', nombre: 'Ruta SOM-01', filial: '590', zona: 'Zona Somoto Centro' },
+      { id: 'RT-SOM-02', nombre: 'Ruta SOM-02', filial: '590', zona: 'Zona Somoto Centro' },
     ],
     usuarios: [
       { id: 'jmedina', nombre: 'José Medina' },
@@ -132,8 +139,39 @@ function buildCatalogs(): Catalogs {
       { id: 'lurbina', nombre: 'Lucía Urbina' },
       { id: 'fmendoza', nombre: 'Francisco Mendoza' },
       { id: 'dmartinez', nombre: 'Dora Martínez' },
+      { id: 'ocastillo', nombre: 'Omar Castillo' },
     ],
   }
+}
+
+/** Geography of the cascade: departamento → unidad → ciudad → sucursal (the route tree is below). */
+export const DEPARTAMENTOS: CatalogOption[] = [
+  { id: '1', nombre: 'Managua' },
+  { id: '2', nombre: 'León' },
+  { id: '3', nombre: 'Matagalpa' },
+  { id: '4', nombre: 'Madriz' },
+]
+
+export const UG_DEPARTAMENTO: Record<string, string> = { '1': '1', '2': '2', '3': '3', '4': '4' }
+
+export const CIUDADES: Array<CatalogOption & { ugestionId: string }> = [
+  { id: '11', nombre: 'Managua', ugestionId: '1' },
+  { id: '12', nombre: 'Masaya', ugestionId: '1' },
+  { id: '13', nombre: 'Granada', ugestionId: '1' },
+  { id: '21', nombre: 'León', ugestionId: '2' },
+  { id: '22', nombre: 'Chinandega', ugestionId: '2' },
+  { id: '31', nombre: 'Matagalpa', ugestionId: '3' },
+  { id: '41', nombre: 'Somoto', ugestionId: '4' },
+]
+
+export const SUCURSAL_CIUDAD: Record<string, string> = {
+  '101': '11',
+  '102': '12',
+  '103': '13',
+  '201': '21',
+  '202': '22',
+  '301': '31',
+  '401': '41',
 }
 
 export const rutaSucursal: Record<string, string> = {
@@ -145,6 +183,8 @@ export const rutaSucursal: Record<string, string> = {
   'RT-MAS-01': '102',
   'RT-GRA-01': '103',
   'RT-MAT-01': '301',
+  'RT-SOM-01': '401',
+  'RT-SOM-02': '401',
 }
 
 /** One field user per route, so per-user progress never double counts an account. */
@@ -157,6 +197,7 @@ export const usuarioRuta: Record<string, string> = {
   lurbina: 'RT-MAS-01',
   fmendoza: 'RT-GRA-01',
   dmartinez: 'RT-MAT-01',
+  ocastillo: 'RT-SOM-01',
 }
 
 const rutaCity: Record<string, { lat: number; lng: number }> = {
@@ -168,6 +209,8 @@ const rutaCity: Record<string, { lat: number; lng: number }> = {
   'RT-MAS-01': cities.masaya,
   'RT-GRA-01': cities.granada,
   'RT-MAT-01': cities.matagalpa,
+  'RT-SOM-01': cities.somoto,
+  'RT-SOM-02': cities.somoto,
 }
 
 /** Accounts carry the route name (what the UI shows), so map the user's route id. */

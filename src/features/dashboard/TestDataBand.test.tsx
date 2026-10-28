@@ -1,3 +1,4 @@
+import { ALCANCE_PAIS } from '@/domain/alcance'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,7 +8,7 @@ import type { Session } from '@/domain/types'
 import type { RuntimeEnvironment } from '@/app/runtimeEnvironment'
 import { DashboardLayout } from './DashboardLayout'
 
-const session: Session = { token: 't', usuario: 'jmedina', nombre: 'José Medina' }
+const session: Session = { token: 't', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS }
 
 function renderLayout(environment: RuntimeEnvironment) {
   const api = new MockDashboardApi({ today: new Date(2026, 9, 27) })

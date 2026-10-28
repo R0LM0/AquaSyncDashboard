@@ -1,4 +1,7 @@
-export const NICARAGUA_CENTER: [number, number] = [12.8, -85.2]
+/** Country centre (Alcance.Mapa of a country user). */
+import { NICARAGUA_HOME } from '@/domain/alcance'
+
+export const NICARAGUA_CENTER: [number, number] = [NICARAGUA_HOME.lat, NICARAGUA_HOME.lng]
 
 /** Country bounding box, the default view before the map reports its own. */
 export const NICARAGUA_BBOX = {

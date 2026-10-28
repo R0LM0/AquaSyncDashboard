@@ -18,6 +18,7 @@ const properties: PredioLayerProperties = {
   idManzana: '7',
   idUgestion: 4,
   idSucursal: 17,
+  estado: 'vinculado',
   supTerreno: 350.5,
   supConst: 120,
 }
@@ -53,6 +54,7 @@ describe('map view helpers', () => {
 
   it('describes a lot for the popup', () => {
     expect(predioPopupLines(properties)).toEqual([
+      ['Estado', 'Cuenta vinculada'],
       ['Lote', '12'],
       ['Manzana', '7'],
       ['Superficie terreno', '350.5 m²'],

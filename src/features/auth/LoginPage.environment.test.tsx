@@ -1,3 +1,4 @@
+import { ALCANCE_PAIS } from '@/domain/alcance'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardApiProvider } from '@/app/DashboardApiProvider'
@@ -66,7 +67,7 @@ describe('environment switch on the login', () => {
     renderLogin({ environment: 'pruebas', onAuthenticated })
 
     saveSession(
-      { token: 'token-produccion', usuario: 'jmedina', nombre: 'José Medina' },
+      { token: 'token-produccion', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS },
       'produccion',
     )
 
@@ -88,15 +89,15 @@ describe('sessions per environment', () => {
   })
 
   it('never reuses the token of the other environment', () => {
-    saveSession({ token: 'token-pruebas', usuario: 'jmedina', nombre: 'José Medina' }, 'pruebas')
+    saveSession({ token: 'token-pruebas', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS }, 'pruebas')
 
     expect(readSession('pruebas')?.token).toBe('token-pruebas')
     expect(readSession('produccion')).toBeNull()
   })
 
   it('logging out only closes the current environment', () => {
-    saveSession({ token: 'token-pruebas', usuario: 'jmedina', nombre: 'José Medina' }, 'pruebas')
-    saveSession({ token: 'token-produccion', usuario: 'jmedina', nombre: 'José Medina' }, 'produccion')
+    saveSession({ token: 'token-pruebas', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS }, 'pruebas')
+    saveSession({ token: 'token-produccion', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS }, 'produccion')
 
     clearSession('pruebas')
 

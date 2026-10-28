@@ -1,3 +1,4 @@
+import { ALCANCE_PAIS } from '@/domain/alcance'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from '@/App'
@@ -7,7 +8,7 @@ import { saveSession } from '@/features/auth/session'
 import { SIDEBAR_KEY, readSidebarCollapsed, saveSidebarCollapsed } from './SidebarNav'
 
 function renderDashboard(path = '/resumen') {
-  saveSession({ token: 't', usuario: 'jmedina', nombre: 'José Medina' })
+  saveSession({ token: 't', usuario: 'jmedina', nombre: 'José Medina', alcance: ALCANCE_PAIS })
   window.history.replaceState(null, '', path)
   const api = new MockDashboardApi({ today: new Date(2026, 9, 27) })
 

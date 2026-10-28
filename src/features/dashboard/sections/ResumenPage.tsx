@@ -9,7 +9,7 @@ import { SectionSkeleton } from '../SectionSkeleton'
 import { EMPTY_SUMMARY } from './emptySummary'
 
 export default function ResumenPage() {
-  const { data, loading, previousSummary, points, highlight, live, openAccount, filters, fitKey } =
+  const { data, loading, previousSummary, points, highlight, live, openAccount, filters, alcance, fitKey } =
     useSectionContext()
 
   if (loading) return <SectionSkeleton />
@@ -57,6 +57,10 @@ export default function ResumenPage() {
               height="max(560px, 65vh)"
               ugestionId={filters.ugestionId}
               sucursalId={filters.sucursalId}
+              desde={filters.desde}
+              hasta={filters.hasta}
+              home={alcance.mapa}
+              homeLabel={alcance.pais ? 'Centrar en Nicaragua' : 'Centrar en mi zona'}
               fitKey={fitKey}
               onSelectAccount={openAccount}
             />

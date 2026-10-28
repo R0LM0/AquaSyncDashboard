@@ -19,6 +19,21 @@ export class SessionExpiredError extends ApiError {
   }
 }
 
+/**
+ * 403 outside login: the user asked for data outside its scope. The session
+ * stays valid; the dashboard shows the message and goes back to the scope.
+ */
+export class ForbiddenError extends ApiError {
+  constructor(message = 'No tiene acceso a esos datos') {
+    super(message, 403, 'Forbidden')
+    this.name = 'ForbiddenError'
+  }
+}
+
+export function isForbidden(error: unknown): error is ForbiddenError {
+  return error instanceof ForbiddenError
+}
+
 /** 404: the resource does not exist (the panel shows "Cuenta no encontrada"). */
 export class NotFoundError extends ApiError {
   constructor(message = 'Cuenta no encontrada') {

@@ -15,6 +15,9 @@ export interface UseMapLayersOptions {
   api: DashboardApi
   ugestionId?: string
   sucursalId?: string
+  /** Period of the filters, sent with the predios so "trabajado" follows it. */
+  desde?: string
+  hasta?: string
   view: MapView
   /** The Predios checkbox, so a disabled layer never hits the API. */
   prediosEnabled: boolean
@@ -38,6 +41,8 @@ export function useMapLayers({
   api,
   ugestionId,
   sucursalId,
+  desde,
+  hasta,
   view,
   prediosEnabled,
 }: UseMapLayersOptions): MapLayersState {
@@ -83,7 +88,7 @@ export function useMapLayers({
       setPrediosLoading(true)
       api
         .layerPredios(
-          { bbox: { minLng, minLat, maxLng, maxLat }, zoom, ugestionId, sucursalId },
+          { bbox: { minLng, minLat, maxLng, maxLat }, zoom, ugestionId, sucursalId, desde, hasta },
           controller.signal,
         )
         .then((layer) => {
@@ -101,7 +106,7 @@ export function useMapLayers({
       clearTimeout(timer)
       controller.abort()
     }
-  }, [api, bboxKey, zoom, ugestionId, sucursalId, prediosEnabled])
+  }, [api, bboxKey, zoom, ugestionId, sucursalId, desde, hasta, prediosEnabled])
 
   // Only what the current view is allowed to show: derived, never stored.
   const allowed = prediosEnabled && shouldLoadPredios(zoom)
