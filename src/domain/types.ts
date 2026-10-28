@@ -189,8 +189,8 @@ export interface PredioLayerProperties {
   idManzana: string
   idUgestion: number
   idSucursal: number
-  supTerreno: number
-  supConst: number
+  supTerreno: number | null
+  supConst: number | null
 }
 
 export interface PrediosQuery {

@@ -272,12 +272,12 @@ export interface SucursalLayerPropertiesDto {
 export interface PredioLayerPropertiesDto {
   id: number
   idPredio: number
-  nroLote: string
-  idManzana: string
+  nroLote: string | number | null
+  idManzana: string | number | null
   idUgestion: number
   idSucursal: number
-  supTerreno: number
-  supConst: number
+  supTerreno: number | null
+  supConst: number | null
 }
 
 /**

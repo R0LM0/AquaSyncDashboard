@@ -44,12 +44,15 @@ export function prediosHint(zoom: number, truncated: boolean, message?: string):
 }
 
 /** Copy for the predio popup, built from typed properties (no raw HTML). */
+const surface = (value: number | null): string =>
+  value === null ? '—' : `${value.toLocaleString('es-NI', { maximumFractionDigits: 2 })} m²`
+
 export function predioPopupLines(properties: PredioLayerProperties): Array<[string, string]> {
   return [
     ['Lote', properties.nroLote || '—'],
     ['Manzana', properties.idManzana || '—'],
-    ['Superficie terreno', `${properties.supTerreno} m²`],
-    ['Superficie construida', `${properties.supConst} m²`],
+    ['Superficie terreno', surface(properties.supTerreno)],
+    ['Superficie construida', surface(properties.supConst)],
   ]
 }
 

@@ -1,3 +1,4 @@
+import { mapPredioProperties } from './predioProperties'
 import {
   HubConnectionBuilder,
   HubConnectionState,
@@ -195,16 +196,7 @@ export class HttpDashboardApi implements DashboardApi {
       'authorized',
     )
 
-    const layer = mapLayer(data, (raw) => ({
-      id: raw.id,
-      idPredio: raw.idPredio,
-      nroLote: raw.nroLote,
-      idManzana: raw.idManzana,
-      idUgestion: raw.idUgestion,
-      idSucursal: raw.idSucursal,
-      supTerreno: raw.supTerreno,
-      supConst: raw.supConst,
-    }))
+    const layer = mapLayer(data, mapPredioProperties)
 
     return { ...layer, message: message || layer.message }
   }
