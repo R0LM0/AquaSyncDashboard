@@ -1,10 +1,25 @@
 import type { Session } from '../../domain/types'
+import {
+  resolveRuntimeEnvironment,
+  type RuntimeEnvironment,
+} from '../../app/runtimeEnvironment'
 
-const SESSION_KEY = 'aquasync.dashboard.session'
+/** One session per environment: switching never reuses the other token. */
+export function sessionKey(environment: RuntimeEnvironment): string {
+  return `aquasync.dashboard.session.${environment}`
+}
+
+/** The environment the running build uses right now. */
+export function currentEnvironment_(): RuntimeEnvironment {
+  return resolveRuntimeEnvironment(import.meta.env)
+}
 
 /** Session lives in sessionStorage: it dies with the browser tab. */
-export function readSession(storage: Storage = sessionStorage): Session | null {
-  const raw = storage.getItem(SESSION_KEY)
+export function readSession(
+  environment: RuntimeEnvironment = currentEnvironment_(),
+  storage: Storage = sessionStorage,
+): Session | null {
+  const raw = storage.getItem(sessionKey(environment))
   if (!raw) return null
 
   try {
@@ -25,12 +40,19 @@ export function readSession(storage: Storage = sessionStorage): Session | null {
   }
 }
 
-export function saveSession(session: Session, storage: Storage = sessionStorage): void {
-  storage.setItem(SESSION_KEY, JSON.stringify(session))
+export function saveSession(
+  session: Session,
+  environment: RuntimeEnvironment = currentEnvironment_(),
+  storage: Storage = sessionStorage,
+): void {
+  storage.setItem(sessionKey(environment), JSON.stringify(session))
 }
 
-export function clearSession(storage: Storage = sessionStorage): void {
-  storage.removeItem(SESSION_KEY)
+export function clearSession(
+  environment: RuntimeEnvironment = currentEnvironment_(),
+  storage: Storage = sessionStorage,
+): void {
+  storage.removeItem(sessionKey(environment))
 }
 
-export { SESSION_KEY }
+export { sessionKey as SESSION_KEY_PREFIX }
