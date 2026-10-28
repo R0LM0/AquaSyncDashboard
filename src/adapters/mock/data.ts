@@ -82,18 +82,19 @@ const changeTypeWeights: Record<ChangeType, number> = {
 
 function buildCatalogs(): Catalogs {
   return {
+    // Numeric ids, like the real API: the GeoJSON layer properties are numbers.
     ugestiones: [
-      { id: 'UG-01', nombre: 'Unidad de Gestión Managua' },
-      { id: 'UG-02', nombre: 'Unidad de Gestión Occidente' },
-      { id: 'UG-03', nombre: 'Unidad de Gestión Norte' },
+      { id: '1', nombre: 'Unidad de Gestión Managua' },
+      { id: '2', nombre: 'Unidad de Gestión Occidente' },
+      { id: '3', nombre: 'Unidad de Gestión Norte' },
     ],
     sucursales: [
-      { id: 'SU-101', nombre: 'Sucursal Managua', ugestionId: 'UG-01' },
-      { id: 'SU-102', nombre: 'Sucursal Masaya', ugestionId: 'UG-01' },
-      { id: 'SU-103', nombre: 'Sucursal Granada', ugestionId: 'UG-01' },
-      { id: 'SU-201', nombre: 'Sucursal León', ugestionId: 'UG-02' },
-      { id: 'SU-202', nombre: 'Sucursal Chinandega', ugestionId: 'UG-02' },
-      { id: 'SU-301', nombre: 'Sucursal Matagalpa', ugestionId: 'UG-03' },
+      { id: '101', nombre: 'Sucursal Managua', ugestionId: '1' },
+      { id: '102', nombre: 'Sucursal Masaya', ugestionId: '1' },
+      { id: '103', nombre: 'Sucursal Granada', ugestionId: '1' },
+      { id: '201', nombre: 'Sucursal León', ugestionId: '2' },
+      { id: '202', nombre: 'Sucursal Chinandega', ugestionId: '2' },
+      { id: '301', nombre: 'Sucursal Matagalpa', ugestionId: '3' },
     ],
     filiales: [
       { id: 'FL-MGA', nombre: 'Filial Managua' },
@@ -136,14 +137,14 @@ function buildCatalogs(): Catalogs {
 }
 
 export const rutaSucursal: Record<string, string> = {
-  'RT-MGA-01': 'SU-101',
-  'RT-MGA-02': 'SU-101',
-  'RT-MGA-03': 'SU-101',
-  'RT-LEO-01': 'SU-201',
-  'RT-CHI-01': 'SU-202',
-  'RT-MAS-01': 'SU-102',
-  'RT-GRA-01': 'SU-103',
-  'RT-MAT-01': 'SU-301',
+  'RT-MGA-01': '101',
+  'RT-MGA-02': '101',
+  'RT-MGA-03': '101',
+  'RT-LEO-01': '201',
+  'RT-CHI-01': '202',
+  'RT-MAS-01': '102',
+  'RT-GRA-01': '103',
+  'RT-MAT-01': '301',
 }
 
 /** One field user per route, so per-user progress never double counts an account. */

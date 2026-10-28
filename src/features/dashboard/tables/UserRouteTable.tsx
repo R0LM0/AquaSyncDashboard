@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { UserRouteProgress } from '../../../domain/types'
-import { formatDateTime, formatPercent } from '../../../shared/format'
+import { ArrowDown, ArrowUp } from 'lucide-react'
+import type { UserRouteProgress } from '@/domain/types'
+import { formatDateTime, formatPercent } from '@/shared/format'
+import { cn } from '@/lib/utils'
+import { EmptyState } from '../EmptyState'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type SortKey =
   | 'usuario'
@@ -18,7 +22,7 @@ interface TableRow extends UserRouteProgress {
   avance: number
 }
 
-const columns: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
+const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
   { key: 'usuario', label: 'Usuario' },
   { key: 'filial', label: 'Filial' },
   { key: 'zona', label: 'Zona' },
@@ -31,7 +35,13 @@ const columns: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
   { key: 'ultimaActividad', label: 'Última actividad' },
 ]
 
-export function UserRouteTable({ progress }: { progress: UserRouteProgress[] }) {
+export function UserRouteTable({
+  progress,
+  loading,
+}: {
+  progress: UserRouteProgress[]
+  loading?: boolean
+}) {
   const [sort, setSort] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
     key: 'avance',
     direction: 'desc',
@@ -40,8 +50,7 @@ export function UserRouteTable({ progress }: { progress: UserRouteProgress[] }) 
   const rows = useMemo<TableRow[]>(() => {
     const withProgress = progress.map((row) => ({
       ...row,
-      avance:
-        row.cuentasRuta > 0 ? Math.round((row.cuentasTrabajadas / row.cuentasRuta) * 100) : 0,
+      avance: row.cuentasRuta > 0 ? Math.round((row.cuentasTrabajadas / row.cuentasRuta) * 100) : 0,
     }))
 
     return withProgress.sort((a, b) => {
@@ -63,19 +72,37 @@ export function UserRouteTable({ progress }: { progress: UserRouteProgress[] }) 
     )
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-8 w-full" />
+        ))}
+      </div>
+    )
+  }
+
   if (progress.length === 0) {
-    return <p className="empty">Ningún usuario trabajó con los filtros actuales.</p>
+    return (
+      <EmptyState
+        title="Sin cambios en el período"
+        detail="Ningún usuario trabajó con los filtros actuales."
+      />
+    )
   }
 
   return (
-    <div className="table-wrapper">
-      <table className="table">
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-sm">
         <thead>
-          <tr>
-            {columns.map((column) => (
+          <tr className="text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">
+            {COLUMNS.map((column) => (
               <th
                 key={column.key}
-                className={column.numeric ? 'is-numeric' : undefined}
+                className={cn(
+                  'border-b border-border-subtle bg-surface-2/60 px-2 py-2 whitespace-nowrap',
+                  column.numeric && 'text-right',
+                )}
                 aria-sort={
                   sort.key === column.key
                     ? sort.direction === 'asc'
@@ -84,9 +111,19 @@ export function UserRouteTable({ progress }: { progress: UserRouteProgress[] }) 
                     : 'none'
                 }
               >
-                <button type="button" className="table__sort" onClick={() => toggleSort(column.key)}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort(column.key)}
+                  className="inline-flex items-center gap-1 uppercase tracking-[0.08em] hover:text-primary"
+                >
                   {column.label}
-                  {sort.key === column.key ? (sort.direction === 'asc' ? ' ▲' : ' ▼') : ''}
+                  {sort.key === column.key ? (
+                    sort.direction === 'asc' ? (
+                      <ArrowUp className="size-3" aria-hidden="true" />
+                    ) : (
+                      <ArrowDown className="size-3" aria-hidden="true" />
+                    )
+                  ) : null}
                 </button>
               </th>
             ))}
@@ -94,22 +131,40 @@ export function UserRouteTable({ progress }: { progress: UserRouteProgress[] }) 
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`${row.usuario}-${row.ruta}`}>
-              <td>{row.usuario}</td>
-              <td>{row.filial}</td>
-              <td>{row.zona}</td>
-              <td>{row.ruta}</td>
-              <td className="is-numeric">{row.cuentasRuta}</td>
-              <td className="is-numeric">{row.cuentasTrabajadas}</td>
-              <td className="is-numeric">{row.fotos}</td>
-              <td className="is-numeric">{row.ubicaciones}</td>
-              <td className="is-numeric">
-                <span className="progress">
-                  <span className="progress__bar" style={{ width: `${row.avance}%` }} aria-hidden="true" />
-                </span>
-                {formatPercent(row.avance)}
+            <tr key={`${row.usuario}-${row.ruta}`} className="transition-colors hover:bg-surface-2/70">
+              <td className="border-b border-border-subtle px-2 py-2 text-xs font-semibold text-fg">
+                {row.usuario}
               </td>
-              <td>{formatDateTime(row.ultimaActividad)}</td>
+              <td className="border-b border-border-subtle px-2 py-2 text-xs text-muted-fg">{row.filial}</td>
+              <td className="border-b border-border-subtle px-2 py-2 text-xs text-muted-fg">{row.zona}</td>
+              <td className="border-b border-border-subtle px-2 py-2 text-xs text-muted-fg">{row.ruta}</td>
+              <td className="border-b border-border-subtle px-2 py-2 text-right text-xs tabular-nums text-fg">
+                {row.cuentasRuta}
+              </td>
+              <td className="border-b border-border-subtle px-2 py-2 text-right text-xs tabular-nums text-fg">
+                {row.cuentasTrabajadas}
+              </td>
+              <td className="border-b border-border-subtle px-2 py-2 text-right text-xs tabular-nums text-fg">
+                {row.fotos}
+              </td>
+              <td className="border-b border-border-subtle px-2 py-2 text-right text-xs tabular-nums text-fg">
+                {row.ubicaciones}
+              </td>
+              <td className="border-b border-border-subtle px-2 py-2 text-right text-xs tabular-nums text-fg">
+                <span className="inline-flex items-center gap-2">
+                  <span className="hidden h-1.5 w-12 overflow-hidden rounded-full bg-surface-2 sm:block">
+                    <span
+                      className="block h-full rounded-full bg-primary"
+                      style={{ width: `${row.avance}%` }}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  {formatPercent(row.avance)}
+                </span>
+              </td>
+              <td className="border-b border-border-subtle px-2 py-2 text-xs text-muted-fg">
+                {formatDateTime(row.ultimaActividad)}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -99,10 +99,25 @@ function HookHarness({ api, onRefresh }: { api: DashboardApi; onRefresh: () => v
 describe('useLiveChanges', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // Counters render statically, so the assertions do not race the animation.
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    )
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('updates the KPIs and the feed when a change matches the filters', () => {
@@ -120,10 +135,10 @@ describe('useLiveChanges', () => {
 
   it('counts a new account and user once, and puts the point on the map', () => {
     const fake = createFakeApi()
-    const view = render(<Harness api={fake.api} onRefresh={() => {}} />)
+    render(<Harness api={fake.api} onRefresh={() => {}} />)
 
     expect(screen.getByTestId('kpi-cuentasTrabajadas')).toHaveTextContent('10')
-    expect(view.container.querySelectorAll('.map-pin')).toHaveLength(0)
+    expect(screen.getByTestId('changes-map')).toHaveAttribute('data-points', '0')
 
     act(() => fake.push(liveChange({ id: 'p1' })))
     act(() => fake.push(liveChange({ id: 'p2', tipoCambio: 'UbicacionNueva' })))
@@ -132,7 +147,8 @@ describe('useLiveChanges', () => {
     expect(screen.getByTestId('kpi-usuariosActivos')).toHaveTextContent('5')
     expect(screen.getByTestId('kpi-fotosNuevas')).toHaveTextContent('1')
     expect(screen.getByTestId('kpi-ubicaciones')).toHaveTextContent('1')
-    expect(view.container.querySelectorAll('.map-pin')).toHaveLength(1)
+    // The live point reaches the map before the next authoritative refresh.
+    expect(screen.getByTestId('changes-map')).toHaveAttribute('data-points', '1')
   })
 
   it('refreshes the authoritative data at most once per window', () => {
@@ -170,7 +186,7 @@ describe('useLiveChanges', () => {
     const onRefresh = vi.fn()
     render(<Harness api={fake.api} onRefresh={onRefresh} />)
 
-    act(() => screen.getByRole('button', { name: 'Pausar' }).click())
+    act(() => screen.getByRole('button', { name: /pausar/i }).click())
     expect(screen.getByTestId('live-status')).toHaveTextContent('En pausa')
 
     act(() => fake.push(liveChange()))
@@ -179,7 +195,7 @@ describe('useLiveChanges', () => {
     expect(screen.getByTestId('kpi-fotosNuevas')).toHaveTextContent('0')
     expect(onRefresh).not.toHaveBeenCalled()
 
-    act(() => screen.getByRole('button', { name: 'Reanudar' }).click())
+    act(() => screen.getByRole('button', { name: /reanudar/i }).click())
     act(() => fake.push(liveChange({ id: 'x2' })))
     expect(screen.getByTestId('kpi-fotosNuevas')).toHaveTextContent('1')
   })

@@ -1,13 +1,19 @@
 import type {
+  AccountDetail,
   Catalogs,
   ChangeRow,
   DailyProgress,
   Filters,
   LiveChange,
+  MapLayer,
   MapPoint,
   Page,
+  PredioLayerProperties,
+  PrediosQuery,
   Session,
+  SucursalLayerProperties,
   Summary,
+  UgestionLayerProperties,
   UserRouteProgress,
 } from '../domain/types'
 
@@ -27,6 +33,14 @@ export interface DashboardApi {
   changes(filters: Filters, page: number, pageSize: number): Promise<Page<ChangeRow>>
   /** Every row matching the filters; the HTTP adapter walks the API pages. */
   allChanges(filters: Filters): Promise<ChangeRow[]>
+  /** Cached for the session by the adapter: the geometry rarely changes. */
+  layerUgestiones(ugestionId?: string, signal?: AbortSignal): Promise<MapLayer<UgestionLayerProperties>>
+  layerSucursales(ugestionId?: string, signal?: AbortSignal): Promise<MapLayer<SucursalLayerProperties>>
+  layerPredios(
+    query: PrediosQuery,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<PredioLayerProperties>>
+  accountDetail(cuenta: string, signal?: AbortSignal): Promise<AccountDetail>
   /**
    * Live channel of registered changes. Returns the unsubscribe function; the
    * UI never learns whether this is a mock timer or a SignalR hub.

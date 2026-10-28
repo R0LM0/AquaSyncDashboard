@@ -2,12 +2,15 @@ import { HttpDashboardApi } from '../adapters/http/HttpDashboardApi'
 import { MockDashboardApi } from '../adapters/mock/MockDashboardApi'
 import type { DashboardApi } from '../ports/DashboardApi'
 import { resolveApiUrl, type LocationLike } from './apiUrl'
+import type { RuntimeEnvironment } from './runtimeEnvironment'
 
 export interface CreateDashboardApiOptions {
   env?: ImportMetaEnv
   location?: LocationLike
   /** Token restored from sessionStorage, so a reload keeps the session alive. */
   token?: string
+  /** Runtime environment: a production build picks the API port with it. */
+  environment?: RuntimeEnvironment
 }
 
 /**
@@ -19,7 +22,10 @@ export function createDashboardApi(options: CreateDashboardApiOptions = {}): Das
 
   if (env.VITE_API_MODE === 'http') {
     const location = options.location ?? window.location
-    return new HttpDashboardApi(resolveApiUrl(location, env), options.token ?? '')
+    return new HttpDashboardApi(
+      resolveApiUrl(location, env, options.environment),
+      options.token ?? '',
+    )
   }
 
   return new MockDashboardApi()

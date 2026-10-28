@@ -5,42 +5,61 @@ import {
   type HubConnection,
 } from '@microsoft/signalr'
 import { dashboardHubUrl } from '../../app/apiUrl'
-import { ApiError, SessionExpiredError } from '../../domain/errors'
+import { ApiError, NotFoundError, SessionExpiredError } from '../../domain/errors'
 import type {
+  AccountDetail,
+  BBox,
   Catalogs,
   ChangeRow,
   DailyProgress,
   Filters,
   LiveChange,
+  MapLayer,
   MapPoint,
   Page,
+  PredioLayerProperties,
+  PrediosQuery,
   Session,
+  SucursalLayerProperties,
   Summary,
+  UgestionLayerProperties,
   UserRouteProgress,
 } from '../../domain/types'
 import type { DashboardApi, LiveStatus } from '../../ports/DashboardApi'
 import {
+  mapAccountDetail,
   mapCatalogs,
   mapChangesPage,
   mapDailyProgress,
+  mapLayer,
   mapLiveChange,
   mapMapPoint,
   mapSession,
   mapSummary,
   mapUserRouteProgress,
+  type AccountDetailDto,
   type CatalogsDto,
   type ChangesPageDto,
   type DailyProgressDto,
+  type LayerDto,
   type LiveChangeDto,
   type LoginDto,
   type MapPointDto,
+  type PredioLayerPropertiesDto,
+  type SucursalLayerPropertiesDto,
   type SummaryDto,
+  type UgestionLayerPropertiesDto,
   type UserRouteProgressDto,
 } from './dto'
 import { readEnvelopeParts, toQueryParams, unwrapData } from './envelope'
 
 /** Page size the API accepts for `cambios` (1..200). */
 export const MAX_PAGE_SIZE = 200
+
+interface Envelope<T> {
+  data: T
+  message: string
+}
 
 /**
  * Real adapter for the BarridoServicios API (see Docuemntacion/api-dashboard.md).
@@ -50,6 +69,7 @@ export class HttpDashboardApi implements DashboardApi {
   private token: string
   private connection: HubConnection | undefined
   private readonly baseUrl: string
+  private readonly layerCache = new Map<string, MapLayer<unknown>>()
 
   constructor(baseUrl: string, token = '') {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
@@ -57,7 +77,7 @@ export class HttpDashboardApi implements DashboardApi {
   }
 
   async login(usuario: string, password: string): Promise<Session> {
-    const dto = await this.request<LoginDto>(
+    const { data } = await this.requestEnvelope<LoginDto>(
       'api/Dashboard/login',
       {
         method: 'POST',
@@ -67,7 +87,7 @@ export class HttpDashboardApi implements DashboardApi {
       'login',
     )
 
-    const session = mapSession(dto)
+    const session = mapSession(data)
     this.token = session.token
     return session
   }
@@ -122,6 +142,83 @@ export class HttpDashboardApi implements DashboardApi {
     return rows
   }
 
+  async layerUgestiones(
+    ugestionId?: string,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<UgestionLayerProperties>> {
+    return this.cachedLayer(`ugestiones:${ugestionId ?? 'all'}`, signal, async () => {
+      const query = ugestionId ? `?ugestionId=${encodeURIComponent(ugestionId)}` : ''
+      const { data } = await this.requestEnvelope<LayerDto<UgestionLayerPropertiesDto>>(
+        `api/Dashboard/capas/ugestiones${query}`,
+        { method: 'GET', signal },
+        'authorized',
+      )
+
+      return mapLayer(data, (raw) => ({ id: raw.id, nombre: raw.nombre }))
+    })
+  }
+
+  async layerSucursales(
+    ugestionId?: string,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<SucursalLayerProperties>> {
+    return this.cachedLayer(`sucursales:${ugestionId ?? 'all'}`, signal, async () => {
+      const query = ugestionId ? `?ugestionId=${encodeURIComponent(ugestionId)}` : ''
+      const { data } = await this.requestEnvelope<LayerDto<SucursalLayerPropertiesDto>>(
+        `api/Dashboard/capas/sucursales${query}`,
+        { method: 'GET', signal },
+        'authorized',
+      )
+
+      return mapLayer(data, (raw) => ({
+        id: raw.id,
+        nombre: raw.nombre,
+        ugestionId: raw.ugestionId,
+      }))
+    })
+  }
+
+  async layerPredios(
+    query: PrediosQuery,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<PredioLayerProperties>> {
+    const params = new URLSearchParams({
+      bbox: formatBbox(query.bbox),
+      zoom: String(Math.round(query.zoom)),
+    })
+    if (query.ugestionId) params.set('ugestionId', query.ugestionId)
+    if (query.sucursalId) params.set('sucursalId', query.sucursalId)
+
+    const { data, message } = await this.requestEnvelope<LayerDto<PredioLayerPropertiesDto>>(
+      `api/Dashboard/capas/predios?${params.toString()}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    const layer = mapLayer(data, (raw) => ({
+      id: raw.id,
+      idPredio: raw.idPredio,
+      nroLote: raw.nroLote,
+      idManzana: raw.idManzana,
+      idUgestion: raw.idUgestion,
+      idSucursal: raw.idSucursal,
+      supTerreno: raw.supTerreno,
+      supConst: raw.supConst,
+    }))
+
+    return { ...layer, message: message || layer.message }
+  }
+
+  async accountDetail(cuenta: string, signal?: AbortSignal): Promise<AccountDetail> {
+    const { data } = await this.requestEnvelope<AccountDetailDto>(
+      `api/Dashboard/cuenta/${encodeURIComponent(cuenta)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapAccountDetail(data)
+  }
+
   subscribeChanges(
     onChange: (change: LiveChange) => void,
     onStatus?: (status: LiveStatus) => void,
@@ -159,6 +256,21 @@ export class HttpDashboardApi implements DashboardApi {
     }
   }
 
+  /** The geometry of a layer is cached for the session, keyed by its filters. */
+  private async cachedLayer<T extends MapLayer<unknown>>(
+    key: string,
+    signal: AbortSignal | undefined,
+    load: () => Promise<T>,
+  ): Promise<T> {
+    const cached = this.layerCache.get(key)
+    if (cached) return cached as T
+
+    const layer = await load()
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    this.layerCache.set(key, layer)
+    return layer
+  }
+
   private get<T>(path: string, filters?: Filters): Promise<T> {
     return this.request<T>(
       `${path}${filters ? toQueryParams(filters) : ''}`,
@@ -172,6 +284,15 @@ export class HttpDashboardApi implements DashboardApi {
     init: RequestInit,
     mode: 'login' | 'authorized',
   ): Promise<T> {
+    const { data } = await this.requestEnvelope<T>(path, init, mode)
+    return data
+  }
+
+  private async requestEnvelope<T>(
+    path: string,
+    init: RequestInit,
+    mode: 'login' | 'authorized',
+  ): Promise<Envelope<T>> {
     const headers = new Headers(init.headers)
     if (mode === 'authorized' && this.token) {
       headers.set('Authorization', `Bearer ${this.token}`)
@@ -182,15 +303,17 @@ export class HttpDashboardApi implements DashboardApi {
 
     if (!response.ok) throw toApiError(response.status, payload, mode)
 
-    return unwrapData<T>(payload)
+    return { data: unwrapData<T>(payload), message: readEnvelopeParts(payload).message }
   }
 }
 
-function toApiError(
-  status: number,
-  payload: unknown,
-  mode: 'login' | 'authorized',
-): ApiError {
+export function formatBbox(bbox: BBox): string {
+  return [bbox.minLng, bbox.minLat, bbox.maxLng, bbox.maxLat]
+    .map((value) => value.toFixed(6))
+    .join(',')
+}
+
+function toApiError(status: number, payload: unknown, mode: 'login' | 'authorized'): ApiError {
   const { title, message } = readEnvelopeParts(payload)
 
   if (status === 503) return new ApiError('Servicio no disponible', status, title)
@@ -203,7 +326,9 @@ function toApiError(
     return new SessionExpiredError()
   }
 
-  // A 400 carries the reason in Message (invalid filters, blank credentials, pagination);
-  // the API's Title is only the generic "Bad Request".
+  if (status === 404) return new NotFoundError(message || title || 'Cuenta no encontrada')
+
+  // A 400 carries Title "Bad Request" and the useful reason in Message; keep
+  // Title as the fallback for the envelopes that only send it.
   return new ApiError(message || title || `La API respondió ${status}`, status, title)
 }

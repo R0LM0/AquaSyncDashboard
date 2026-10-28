@@ -136,3 +136,109 @@ export interface Page<T> {
   rows: T[]
   total: number
 }
+
+/* ---------------------------------------------------------------- map layers */
+
+export interface BBox {
+  minLng: number
+  minLat: number
+  maxLng: number
+  maxLat: number
+}
+
+/** GeoJSON is standard: lowercase members, geometry 4326, camelCase properties. */
+export interface MultiPolygonGeometry {
+  type: 'MultiPolygon'
+  coordinates: number[][][][]
+}
+
+export interface LayerFeature<Properties> {
+  type: 'Feature'
+  geometry: MultiPolygonGeometry
+  properties: Properties
+}
+
+export interface LayerCollection<Properties> {
+  type: 'FeatureCollection'
+  features: Array<LayerFeature<Properties>>
+}
+
+export interface MapLayer<Properties> {
+  collection: LayerCollection<Properties>
+  /** The server cut the list: the client must zoom in. */
+  truncated: boolean
+  /** Server hint, e.g. "Acerque el mapa para ver predios". */
+  message?: string
+}
+
+export interface UgestionLayerProperties {
+  id: number
+  nombre: string
+}
+
+export interface SucursalLayerProperties {
+  id: number
+  nombre: string
+  ugestionId: number
+}
+
+export interface PredioLayerProperties {
+  id: number
+  idPredio: number
+  nroLote: string
+  idManzana: string
+  idUgestion: number
+  idSucursal: number
+  supTerreno: number
+  supConst: number
+}
+
+export interface PrediosQuery {
+  bbox: BBox
+  zoom: number
+  ugestionId?: string
+  sucursalId?: string
+}
+
+/* ------------------------------------------------------------ account detail */
+
+export interface AccountPhoto {
+  adjuntoId: string
+  tipo: number
+  tipoNombre: string
+  fecha: string
+  descripcion: string
+  /** Relative to the API base; that endpoint is anonymous. */
+  urlImagen: string
+}
+
+export interface AccountHistoryEntry {
+  id: string
+  fecha: string
+  usuario: string
+  tipoCambio: ChangeType
+  origen: string
+  adjuntoId?: string
+}
+
+export interface AccountDetail {
+  cuenta: string
+  cliente: string
+  direccion: string
+  tipoServicio: string
+  estado: string
+  estadoAdministrativo: string
+  medidor: string
+  filial: string
+  zona: string
+  ruta: string
+  numeroCatastral: string
+  ugestionId: string
+  ugestionNombre: string
+  sucursalId: string
+  sucursalNombre: string
+  lat?: number
+  lng?: number
+  fotos: AccountPhoto[]
+  historial: AccountHistoryEntry[]
+}

@@ -17,6 +17,34 @@ if (!('ResizeObserver' in globalThis)) {
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver
 }
 
+// jsdom has no layout engine. Leaflet needs a non-zero container before it will
+// render markers or clusters, so every element reports the same mock box.
+Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+  configurable: true,
+  get: () => 1024,
+})
+Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+  configurable: true,
+  get: () => 768,
+})
+HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+  return {
+    x: 0,
+    y: 0,
+    width: 1024,
+    height: 768,
+    top: 0,
+    left: 0,
+    right: 1024,
+    bottom: 768,
+    toJSON: () => ({}),
+  } as DOMRect
+}
+
+// jsdom has no canvas backend; a null context keeps components on their guard
+// path instead of printing "Not implemented" for every mount.
+HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+
 if (typeof window.matchMedia !== 'function') {
   window.matchMedia = ((query: string) => ({
     matches: false,

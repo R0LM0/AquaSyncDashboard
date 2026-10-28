@@ -19,6 +19,18 @@ export class SessionExpiredError extends ApiError {
   }
 }
 
+/** 404: the resource does not exist (the panel shows "Cuenta no encontrada"). */
+export class NotFoundError extends ApiError {
+  constructor(message = 'Cuenta no encontrada') {
+    super(message, 404, 'Not Found')
+    this.name = 'NotFoundError'
+  }
+}
+
+export function isNotFound(error: unknown): error is NotFoundError {
+  return error instanceof NotFoundError
+}
+
 export function isSessionExpired(error: unknown): error is SessionExpiredError {
   return error instanceof SessionExpiredError
 }

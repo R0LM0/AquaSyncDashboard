@@ -18,15 +18,24 @@ mode, no backend needed).
 | typescript | 6.0.3 |
 | recharts | 3.10.1 |
 | leaflet / react-leaflet | 1.9.4 / 5.0.0 |
-| xlsx (SheetJS) | 0.18.5 |
+| exceljs / jspdf / jspdf-autotable | 4.4.0 / 4.2.1 / 5.0.9 |
 | @microsoft/signalr | 10.0.11 |
 | vitest / jsdom | 5.0.5 / 30.1.3 |
 | oxlint | 1.90.0 |
+| tailwindcss / @tailwindcss/vite | 4.3.3 |
+| react-router-dom | 7.18.4 |
+| lucide-react (icons) | 1.61.0 |
+| @radix-ui (dialog, tooltip, slot, popover) | 1.3.1 / 1.4.1 / 1.5.0 / 1.3.1 |
+| @fontsource-variable/manrope | 5.3.0 |
+| react-leaflet-cluster | 4.1.3 |
+| class-variance-authority / clsx / tailwind-merge | 0.7.1 / 2.1.1 / 3.7.0 |
 
-The map and the charts load with `React.lazy` (skeleton while they arrive) and SheetJS only
-loads when somebody clicks "Exportar Excel", which keeps the main chunk small. The PDF path is
-a print stylesheet plus `window.print()`. Styling is plain CSS with design tokens (light and
-dark through `prefers-color-scheme`).
+Same visual stack as `admin-web`: Tailwind 4 with HSL design tokens, Radix primitives,
+lucide icons and Manrope. Every proportional section (login, map, charts, tables) loads with
+`React.lazy` behind a skeleton: the main entry chunk is ~478 kB. `exceljs` (~914 kB) and
+`jspdf` + `jspdf-autotable` (~424 kB) only load when somebody exports a report, so they never
+weigh on the dashboard. Light and dark themes share one token set; OSM tiles are darkened with a
+CSS filter in the dark theme, like admin-web.
 
 ## API URL, resolved at runtime
 
@@ -98,6 +107,44 @@ publishes the corresponding environment. No server-side rendering, no Node runti
 must allow the dashboard origin in CORS, and the SignalR hub lives at
 `${API}/hubs/dashboard` with the event `CambioRegistrado`.
 
+## Screens
+
+A collapsible sidebar (state in `localStorage`) holds the sections and, on tablets, becomes a
+drawer. The top bar carries the breadcrumb, the environment chip, the live status and a refresh
+button; the filter bar sits under it, collapsed by default, and every section shares the same
+filters (persisted in the URL).
+
+| Section | What it shows |
+| --- | --- |
+| **Resumen** | KPI cards with count-up, a 14-day sparkline and the delta against the previous period; stacked area chart by change type; distribution donut with the total in the centre; a tall map (`max(560px, 65vh)`) with the live feed beside it at the same height and its own scrolling. |
+| **Mapa** | The same map filling the window (`max(600px, calc(100vh - topbar - filters))`): clustered markers coloured by change type, cadastral layers, fullscreen and "centrar en Nicaragua" buttons, plus the live feed beside it. |
+| **Avance por ruta** | Radial gauge with the overall progress, animated gradient bars per route and the sortable user/route table. |
+| **Usuarios** | Ranking with position, initials avatar and gradient bars, next to the per-user/per-route table. |
+| **Detalle y reportes** | Paginated change detail with the Excel export and the print/PDF action. |
+| Próximamente (Encuestas, Servicios nuevos, Metas) | Announced, disabled, never navigable. |
+
+### Map controls
+
+One icon button (`Layers`) sits in the top right, under "centrar" and fullscreen, and opens a
+compact popover grouped by *Mapa base* (OpenStreetMap / Satélite), *Límites* (unidades de gestión,
+sucursales), *Catastro* (predios, disabled below zoom 15 with the hint) and *Trabajo de campo*
+(cambios). The chosen base map and layers persist in `localStorage`. The legend sits bottom left
+and collapses into a "Leyenda" chip; the lot hints are centred at the bottom, clear of the zoom
+controls and the attribution.
+
+The map re-frames only when the filters change (or on the first load with data). Markers are
+managed imperatively per account, so a live event adds or updates just its own marker: no list
+rebuild, no map remount, no zoom jump.
+
+The login is its own chunk: an original scene (field crew → cadastral server → map) drawn in
+inline SVG, with data packets travelling in a canvas overlay. The scene pauses with a hidden tab,
+stays static under `prefers-reduced-motion` and never intercepts the pointer. The hero title is
+"Seguimiento catastral" with the gradient on the second word; the environment chip is visible on
+the login too.
+
+`src/domain/labels.ts` is the single source for the four change-type colours: charts, map markers
+and legends all read it.
+
 ## Architecture
 
 Hexagonal, with containers and presentational components:
@@ -141,6 +188,41 @@ a brief highlight and refreshes the authoritative data at most once every 5 s. W
 channel is down and not paused, data is refreshed every 60 s; a lost event is never resent, so
 a reconnect re-queries the reports.
 
+### Reports (Excel and PDF)
+
+`Exportar` opens a menu with the two formats; both are built from the same pure content model
+(`src/features/dashboard/report/reportContent.ts`) and styled in separate builders:
+
+- **Excel** (`exceljs`): a "Resumen" cover with the brand band and logo, readable filters and the
+  KPI block; "Avance por ruta" with a coloured frozen header, autofilter, fitted widths, data bars
+  on the progress column and a bold totals row; "Detalle de cambios" with real dates and the change
+  type in its own colour; "Actividad diaria" ready to chart. Workbook properties and a landscape,
+  fit-to-width print setup with page numbers.
+- **PDF** (`jspdf` + `jspdf-autotable`): A4 landscape cover with the band, the logo, the filters box,
+  the KPI cards and the three charts rasterized at 2× on a light background, then the route and
+  change tables with a coloured header, zebra rows, the type in its colour and a repeated header.
+  Every page carries "Página X de Y", who generated it and the environment.
+
+Above 20,000 detail rows the menu warns and suggests narrowing the period; the export still runs.
+A toast confirms the file and a clear message appears if it fails.
+
+### Runtime environment (one production build, two servers)
+
+`npm run build:prod` produces a single bundle that can point at either API, chosen on the login
+with a `Pruebas | Producción` control (Producción by default):
+
+| Environment | API port (same host as the dashboard) |
+| --- | --- |
+| Producción | 8070 |
+| Pruebas | 7050 |
+
+The choice is stored in `localStorage` (`aquasync.ambiente`) and `src/app/apiUrl.ts` is still the
+only place that resolves the URL, now also for the SignalR hub. Each environment keeps its own
+session (`aquasync.dashboard.session.<environment>`), so switching never reuses the other token and
+logging out only closes the current one. In Pruebas the dashboard shows a thin amber band
+("Estás viendo datos de pruebas"). Mock (`npm run dev`), the local API (`npm run dev:local`) and
+`build:test` keep their fixed target and the switch is hidden.
+
 ### Errors
 
 | Response | What the dashboard does |
@@ -154,7 +236,7 @@ The token is restored from `sessionStorage` on reload, so a refresh does not log
 
 ## Tests
 
-Vitest + Testing Library + jsdom, 73 tests: mock filters (route, user, date range, change
+Vitest + Testing Library + jsdom, 210 tests: mock filters (route, user, date range, change
 type, gestión/sucursal), summary consistency against the detail rows, cascading catalogs,
 filters ↔ URL round trip, API URL resolution (override, internal IP, public IP, https),
 per-endpoint contract tests with the JSON examples of the API doc, `CambioRegistrado`

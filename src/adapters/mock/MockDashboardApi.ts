@@ -1,10 +1,19 @@
+import { NotFoundError } from '../../domain/errors'
 import type {
+  AccountDetail,
+  AccountHistoryEntry,
   AccountMeta,
+  AccountPhoto,
   ChangeRow,
   DailyProgress,
   Filters,
+  MapLayer,
   MapPoint,
+  PredioLayerProperties,
+  PrediosQuery,
+  SucursalLayerProperties,
   Summary,
+  UgestionLayerProperties,
   UserRouteProgress,
 } from '../../domain/types'
 import type { DashboardApi } from '../../ports/DashboardApi'
@@ -16,12 +25,26 @@ import {
   type MockEvent,
 } from './data'
 import { createRandom, randomInt } from './random'
+import {
+  bboxOfPoints,
+  bboxOfRing,
+  collectionOf,
+  emptyLayer,
+  featureFromRing,
+  intersects,
+  placeholderPhoto,
+  PREDIOS_MIN_ZOOM,
+  predioRing,
+  ringFromBbox,
+} from './layers'
 
 export interface MockDashboardApiOptions {
   /** Anchor day for the generated history. Defaults to today. */
   today?: Date
   /** Seed for the generated history, so tests can pin the dataset. */
   seed?: number
+  /** Tie-break for `Truncated`: the server cuts the lot list at 3000. */
+  predioLimit?: number
 }
 
 const LIVE_DELAY_MIN_MS = 5_000
@@ -33,9 +56,14 @@ export class MockDashboardApi implements DashboardApi {
   private readonly liveRandom = createRandom(Date.now() % 100_000)
   private listeners = new Set<Parameters<DashboardApi['subscribeChanges']>[0]>()
   private timer: ReturnType<typeof setTimeout> | undefined
+  private readonly predioLimit: number
+  private readonly ugestionLayers = new Map<string, MapLayer<UgestionLayerProperties>>()
+  private readonly sucursalLayers = new Map<string, MapLayer<SucursalLayerProperties>>()
+  private readonly predioRings = new Map<string, Array<[number, number]>>()
 
   constructor(options: MockDashboardApiOptions = {}) {
     this.dataset = buildMockDataset(options.today ?? new Date())
+    this.predioLimit = options.predioLimit ?? 3000
 
     const rutas = new Map(
       this.dataset.catalogs.rutas.map((ruta) => [ruta.nombre, ruta]),
@@ -192,6 +220,179 @@ export class MockDashboardApi implements DashboardApi {
       rows: rows.slice(start, start + pageSize),
       total: rows.length,
     }
+  }
+
+  async layerUgestiones(
+    ugestionId?: string,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<UgestionLayerProperties>> {
+    const key = ugestionId ?? 'all'
+    const cached = this.ugestionLayers.get(key)
+    if (cached) return cached
+
+    const random = createRandom(90_001)
+    const features = this.dataset.catalogs.ugestiones
+      .filter((ugestion) => !ugestionId || ugestion.id === ugestionId)
+      .map((ugestion) => {
+        const accounts = this.dataset.accounts.filter(
+          (account) => this.meta.get(account.cuenta)?.ugestionId === ugestion.id,
+        )
+        return featureFromRing(ringFromBbox(bboxOfPoints(accounts, 0.05), random), {
+          id: Number(ugestion.id),
+          nombre: ugestion.nombre,
+        })
+      })
+
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
+    const layer: MapLayer<UgestionLayerProperties> = {
+      collection: collectionOf(features),
+      truncated: false,
+    }
+    this.ugestionLayers.set(key, layer)
+    return layer
+  }
+
+  async layerSucursales(
+    ugestionId?: string,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<SucursalLayerProperties>> {
+    const key = ugestionId ?? 'all'
+    const cached = this.sucursalLayers.get(key)
+    if (cached) return cached
+
+    const random = createRandom(90_002)
+    const features = this.dataset.catalogs.sucursales
+      .filter((sucursal) => !ugestionId || sucursal.ugestionId === ugestionId)
+      .map((sucursal) => {
+        const accounts = this.dataset.accounts.filter(
+          (account) => this.meta.get(account.cuenta)?.sucursalId === sucursal.id,
+        )
+        return featureFromRing(ringFromBbox(bboxOfPoints(accounts, 0.03), random, 0.005), {
+          id: Number(sucursal.id),
+          nombre: sucursal.nombre,
+          ugestionId: Number(sucursal.ugestionId),
+        })
+      })
+
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
+    const layer: MapLayer<SucursalLayerProperties> = {
+      collection: collectionOf(features),
+      truncated: false,
+    }
+    this.sucursalLayers.set(key, layer)
+    return layer
+  }
+
+  async layerPredios(
+    query: PrediosQuery,
+    signal?: AbortSignal,
+  ): Promise<MapLayer<PredioLayerProperties>> {
+    if (query.zoom < PREDIOS_MIN_ZOOM) return emptyLayer('Acerque el mapa para ver predios')
+
+    const random = createRandom(90_003)
+    const matches = this.dataset.accounts.filter((account) => {
+      const meta = this.meta.get(account.cuenta)
+      if (!meta) return false
+      if (query.ugestionId && meta.ugestionId !== query.ugestionId) return false
+      if (query.sucursalId && meta.sucursalId !== query.sucursalId) return false
+
+      return intersects(bboxOfRing(this.ringFor(meta.cuenta, meta.lat, meta.lng, random)), query.bbox)
+    })
+
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
+    const truncated = matches.length > this.predioLimit
+    const features = matches.slice(0, this.predioLimit).map((account, index) => {
+      const meta = this.meta.get(account.cuenta)!
+      return featureFromRing(this.ringFor(meta.cuenta, meta.lat, meta.lng, random), {
+        id: 90_000 + index,
+        idPredio: 555_000 + index,
+        nroLote: `${(index % 40) + 1}`,
+        idManzana: `${(index % 12) + 1}`,
+        idUgestion: Number(meta.ugestionId ?? 0),
+        idSucursal: Number(meta.sucursalId ?? 0),
+        supTerreno: Number((180 + (index % 30) * 12.5).toFixed(1)),
+        supConst: Number((60 + (index % 18) * 8.25).toFixed(1)),
+      })
+    })
+
+    return {
+      collection: collectionOf(features),
+      truncated,
+      message: truncated ? 'Mostrando 3000 predios: acerque más' : undefined,
+    }
+  }
+
+  async accountDetail(cuenta: string, signal?: AbortSignal): Promise<AccountDetail> {
+    const meta = this.meta.get(cuenta)
+    if (!meta) throw new NotFoundError()
+
+    const events = this.dataset.events
+      .filter((event) => event.cuenta === cuenta)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))
+      .slice(0, 50)
+
+    const historial: AccountHistoryEntry[] = events.map((event) => ({
+      id: event.id,
+      fecha: event.fecha,
+      usuario: event.usuario,
+      tipoCambio: event.tipoCambio,
+      origen: event.origen,
+    }))
+
+    const fotos: AccountPhoto[] = events
+      .filter((event) => event.tipoCambio === 'FotoNueva' || event.tipoCambio === 'FotoActualizada')
+      .slice(0, 3)
+      .map((event, index) => {
+        const tipoNombre = index === 0 ? 'Fachada' : index === 1 ? 'Medidor' : 'Predio'
+        return {
+          adjuntoId: `9${index}${event.id.slice(-3)}`,
+          tipo: 2,
+          tipoNombre,
+          fecha: event.fecha,
+          descripcion: `${tipoNombre} de la cuenta ${cuenta}`,
+          urlImagen: placeholderPhoto(`CTA ${cuenta}`, `${tipoNombre} · ${meta.cliente}`, index),
+        }
+      })
+
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
+    return {
+      cuenta,
+      cliente: meta.cliente,
+      direccion: `Frente al parque, ${meta.filial} · ${meta.zona}`,
+      tipoServicio: '1',
+      estado: events.length > 0 ? 'A' : 'S',
+      estadoAdministrativo: 'A',
+      medidor: `M-${cuenta.slice(-4)}`,
+      filial: meta.filial,
+      zona: meta.zona,
+      ruta: meta.ruta,
+      numeroCatastral: `${meta.filial || '00'}.${meta.zona || '00'}.${cuenta.slice(-4)}`,
+      ugestionId: meta.ugestionId ?? '',
+      ugestionNombre:
+        this.dataset.catalogs.ugestiones.find((option) => option.id === meta.ugestionId)?.nombre ??
+        '',
+      sucursalId: meta.sucursalId ?? '',
+      sucursalNombre:
+        this.dataset.catalogs.sucursales.find((option) => option.id === meta.sucursalId)?.nombre ??
+        '',
+      lat: meta.lat,
+      lng: meta.lng,
+      fotos,
+      historial,
+    }
+  }
+
+  private ringFor(cuenta: string, lat: number, lng: number, random: () => number) {
+    const cached = this.predioRings.get(cuenta)
+    if (cached) return cached
+
+    const ring = predioRing(lat, lng, random)
+    this.predioRings.set(cuenta, ring)
+    return ring
   }
 
   async allChanges(filters: Filters): Promise<ChangeRow[]> {

@@ -1,9 +1,11 @@
 import type {
+  AccountDetail,
   Catalogs,
   ChangeRow,
   ChangeType,
   DailyProgress,
   LiveChange,
+  MapLayer,
   MapPoint,
   Page,
   Session,
@@ -238,5 +240,154 @@ export function mapLiveChange(dto: LiveChangeDto): LiveChange {
     ugestionId: dto.ugestionId == null ? undefined : String(dto.ugestionId),
     sucursalId: dto.sucursalId == null ? undefined : String(dto.sucursalId),
     adjuntoId: dto.adjuntoId == null ? undefined : String(dto.adjuntoId),
+  }
+}
+
+/* --------------------------------------------------------------- map layers */
+
+export interface LayerFeatureDto<Properties> {
+  type: string
+  geometry: { type: string; coordinates: number[][][][] | number[][][] }
+  properties: Properties
+}
+
+export interface LayerDto<Properties> {
+  type: string
+  features: Array<LayerFeatureDto<Properties>>
+  /** PascalCase even inside the GeoJSON Data (see the API doc). */
+  Truncated?: boolean
+}
+
+export interface UgestionLayerPropertiesDto {
+  id: number
+  nombre: string
+}
+
+export interface SucursalLayerPropertiesDto {
+  id: number
+  nombre: string
+  ugestionId: number
+}
+
+export interface PredioLayerPropertiesDto {
+  id: number
+  idPredio: number
+  nroLote: string
+  idManzana: string
+  idUgestion: number
+  idSucursal: number
+  supTerreno: number
+  supConst: number
+}
+
+/**
+ * `Truncated` sits inside `Data`; `Message` stays on the envelope. Geometry is
+ * kept as is: leaflet consumes standard GeoJSON.
+ */
+export function mapLayer<PropertiesDto, Properties>(
+  dto: LayerDto<PropertiesDto> | undefined | null,
+  mapProperties: (raw: PropertiesDto) => Properties,
+): MapLayer<Properties> {
+  const features = (dto?.features ?? []).flatMap((feature) => {
+    const geometry = feature.geometry
+    if (!geometry) return []
+
+    const coordinates =
+      geometry.type === 'Polygon'
+        ? [geometry.coordinates as number[][][]]
+        : (geometry.coordinates as number[][][][])
+
+    return [
+      {
+        type: 'Feature' as const,
+        geometry: { type: 'MultiPolygon' as const, coordinates },
+        properties: mapProperties(feature.properties),
+      },
+    ]
+  })
+
+  return {
+    collection: { type: 'FeatureCollection', features },
+    truncated: Boolean(dto?.Truncated),
+  }
+}
+
+/* ----------------------------------------------------------- account detail */
+
+export interface AccountPhotoDto {
+  AdjuntoId: number
+  Tipo: number
+  TipoNombre?: string | null
+  Fecha: string
+  Descripcion?: string | null
+  UrlImagen: string
+}
+
+export interface AccountHistoryDto {
+  Id: number
+  Fecha: string
+  Usuario: string
+  TipoCambio: string
+  Origen?: string | null
+  AdjuntoId?: number | null
+}
+
+export interface AccountDetailDto {
+  Cuenta: number
+  Cliente?: string | null
+  Direccion?: string | null
+  TipoServicio?: string | null
+  Estado?: string | null
+  EstadoAdministrativo?: string | null
+  Medidor?: string | null
+  Filial?: string | null
+  Zona?: string | null
+  Ruta?: string | null
+  NumeroCatastral?: string | null
+  UgestionId?: number | null
+  UgestionNombre?: string | null
+  SucursalId?: number | null
+  SucursalNombre?: string | null
+  Lat?: number | null
+  Lng?: number | null
+  Fotos?: AccountPhotoDto[]
+  Historial?: AccountHistoryDto[]
+}
+
+export function mapAccountDetail(dto: AccountDetailDto): AccountDetail {
+  return {
+    cuenta: String(dto.Cuenta),
+    cliente: dto.Cliente ?? '',
+    direccion: dto.Direccion ?? '',
+    tipoServicio: dto.TipoServicio ?? '',
+    estado: dto.Estado ?? '',
+    estadoAdministrativo: dto.EstadoAdministrativo ?? '',
+    medidor: dto.Medidor ?? '',
+    filial: dto.Filial ?? '',
+    zona: dto.Zona ?? '',
+    ruta: dto.Ruta ?? '',
+    numeroCatastral: dto.NumeroCatastral ?? '',
+    ugestionId: dto.UgestionId == null ? '' : String(dto.UgestionId),
+    ugestionNombre: dto.UgestionNombre ?? '',
+    sucursalId: dto.SucursalId == null ? '' : String(dto.SucursalId),
+    sucursalNombre: dto.SucursalNombre ?? '',
+    lat: dto.Lat ?? undefined,
+    lng: dto.Lng ?? undefined,
+    fotos: (dto.Fotos ?? []).map((photo) => ({
+      adjuntoId: String(photo.AdjuntoId),
+      tipo: photo.Tipo,
+      tipoNombre: photo.TipoNombre ?? '',
+      fecha: photo.Fecha,
+      descripcion: photo.Descripcion ?? '',
+      urlImagen: photo.UrlImagen,
+    })),
+    historial: (dto.Historial ?? []).map((entry) => ({
+      id: String(entry.Id),
+      fecha: entry.Fecha,
+      usuario: entry.Usuario,
+      tipoCambio: toChangeType(entry.TipoCambio),
+      origen: entry.Origen ?? '',
+      adjuntoId: entry.AdjuntoId == null ? undefined : String(entry.AdjuntoId),
+    })),
   }
 }
