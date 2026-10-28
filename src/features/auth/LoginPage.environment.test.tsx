@@ -48,11 +48,14 @@ describe('environment switch on the login', () => {
     expect(onEnvironmentChange).toHaveBeenCalledWith('pruebas')
   })
 
-  it('marks the current environment and explains the port', () => {
+  it('marks the current environment without printing the server address', () => {
     renderLogin({ environment: 'pruebas' })
 
     expect(screen.getByRole('radio', { name: 'Pruebas' })).toBeChecked()
-    expect(screen.getByText(/servidor de pruebas \(:7050\)/)).toBeInTheDocument()
+    // The login must not advertise which server it talks to; the header chip does.
+    expect(screen.queryByText(/se conecta al servidor/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/:7050/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/:8070/)).not.toBeInTheDocument()
   })
 
   it('hides the switch when the build fixes the environment', () => {

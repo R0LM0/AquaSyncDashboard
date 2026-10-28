@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useDashboardApi } from '@/app/dashboardApiContext'
 import {
-  ENVIRONMENT_LABELS,
   isEnvironmentSwitchable,
   resolveRuntimeEnvironment,
   type RuntimeEnvironment,
@@ -265,11 +264,6 @@ export function LoginPage({
                         </button>
                       ))}
                     </div>
-                    <p className="text-[11px] text-muted-fg">
-                      {currentEnvironment === 'pruebas'
-                        ? `Se conecta al servidor de ${ENVIRONMENT_LABELS.pruebas.toLowerCase()} (:7050).`
-                        : `Se conecta al servidor de ${ENVIRONMENT_LABELS.produccion.toLowerCase()} (:8070).`}
-                    </p>
                   </div>
                 ) : (
                   <p className="text-[11px] text-muted-fg" data-testid="environment-fixed">
