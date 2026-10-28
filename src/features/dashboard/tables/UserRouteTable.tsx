@@ -38,9 +38,12 @@ const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
 export function UserRouteTable({
   progress,
   loading,
+  onSelectRoute,
 }: {
   progress: UserRouteProgress[]
   loading?: boolean
+  /** When given, a row opens that route's coverage; without it the rows stay static. */
+  onSelectRoute?: (row: UserRouteProgress) => void
 }) {
   const [sort, setSort] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
     key: 'avance',
@@ -131,7 +134,24 @@ export function UserRouteTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`${row.usuario}-${row.ruta}`} className="transition-colors hover:bg-surface-2/70">
+            <tr
+              key={`${row.usuario}-${row.ruta}`}
+              className={cn(
+                'transition-colors hover:bg-surface-2/70',
+                onSelectRoute && 'cursor-pointer focus-visible:bg-surface-2/70 focus-visible:outline-none',
+              )}
+              tabIndex={onSelectRoute ? 0 : undefined}
+              onClick={onSelectRoute ? () => onSelectRoute(row) : undefined}
+              onKeyDown={
+                onSelectRoute
+                  ? (event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      onSelectRoute(row)
+                    }
+                  : undefined
+              }
+            >
               <td className="border-b border-border-subtle px-2 py-2 text-xs font-semibold text-fg">
                 {row.usuario}
               </td>

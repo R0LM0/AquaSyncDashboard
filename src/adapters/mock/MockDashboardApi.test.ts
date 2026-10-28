@@ -222,3 +222,65 @@ describe('MockDashboardApi live channel', () => {
     expect(after.rows[0].id).toBe(received?.id)
   })
 })
+
+describe('MockDashboardApi cobertura de ruta', () => {
+  it('requires filial, zona and ruta, as the API does', async () => {
+    const api = createApi()
+
+    await expect(api.routeCoverage(baseFilters())).rejects.toThrow(
+      'Seleccioná filial, zona y ruta para ver la cobertura',
+    )
+  })
+
+  it('returns trabajadas, pendientes and fuera de ruta for a route', async () => {
+    const api = createApi()
+    const routes = (await api.catalogs()).rutas
+    let found: Awaited<ReturnType<typeof api.routeCoverage>> | undefined
+
+    for (const ruta of routes) {
+      const coverage = await api.routeCoverage({
+        ...baseFilters(),
+        filial: ruta.filial,
+        zona: ruta.zona,
+        ruta: ruta.nombre,
+      })
+      if (coverage.trabajadas > 0 && coverage.pendientes > 0 && coverage.fueraDeRuta > 0) {
+        found = coverage
+        break
+      }
+    }
+
+    expect(found).toBeDefined()
+    const estados = new Set(found?.cuentas.map((account) => account.estado))
+    expect(estados).toEqual(new Set(['trabajada', 'pendiente', 'fuera_de_ruta']))
+    expect(found?.cuentasRuta).toBe((found?.trabajadas ?? 0) + (found?.pendientes ?? 0))
+    expect(found?.avancePct).toBeCloseTo(((found?.trabajadas ?? 0) * 100) / (found?.cuentasRuta ?? 1), 1)
+  })
+})
+
+describe('MockDashboardApi ranking de rutas', () => {
+  it('requires a unidad de gestión or sucursal, as the API does', async () => {
+    const api = createApi()
+
+    await expect(api.routeRanking(baseFilters())).rejects.toThrow(
+      'Seleccioná una unidad de gestión o sucursal para ver el ranking de rutas',
+    )
+  })
+
+  it('lists the routes of the unit worst first, including routes with no work', async () => {
+    const api = createApi()
+    // Unit 4 (Madriz) has RT-SOM-02 with no user yet: the one route with no work in the mock.
+    const ugestionId = '4'
+
+    const rows = await api.routeRanking({ ...baseFilters(), ugestionId })
+
+    const avances = rows.map((row) => row.avancePct)
+    expect(rows.length).toBeGreaterThan(1)
+    expect([...avances].sort((a, b) => a - b)).toEqual(avances)
+    expect(rows.some((row) => row.trabajadas === 0)).toBe(true)
+    expect(rows.some((row) => row.trabajadas > 0)).toBe(true)
+    for (const row of rows) {
+      expect(row.pendientes).toBe(row.cuentasRuta - row.trabajadas)
+    }
+  })
+})

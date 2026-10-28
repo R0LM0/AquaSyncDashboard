@@ -4,6 +4,7 @@ import type {
   AccountDetail,
   Alcance,
   CatalogOption,
+  CoverageEstado,
   Catalogs,
   ChangeRow,
   ChangeType,
@@ -12,6 +13,8 @@ import type {
   MapLayer,
   MapPoint,
   Page,
+  RouteCoverage,
+  RouteRankingRow,
   Session,
   Summary,
   UserRouteProgress,
@@ -78,6 +81,44 @@ export interface UserRouteProgressDto {
   Fotos: number
   Ubicaciones: number
   UltimaActividad: string
+}
+
+export interface CoberturaCuentaDto {
+  Cuenta: number
+  Cliente?: string | null
+  Direccion?: string | null
+  Estado: string
+  Usuario?: string | null
+  PrimeraActividad?: string | null
+  UltimaActividad?: string | null
+  Fotos: number
+  Ubicaciones: number
+  Lat?: number | null
+  Lng?: number | null
+}
+
+export interface CoberturaRutaDto {
+  Filial?: string | null
+  Zona?: string | null
+  Ruta?: string | null
+  CuentasRuta: number
+  Trabajadas: number
+  Pendientes: number
+  FueraDeRuta: number
+  AvancePct: number
+  Cuentas: CoberturaCuentaDto[]
+}
+
+export interface CoberturaRutaResumenDto {
+  Filial?: string | null
+  Zona?: string | null
+  Ruta?: string | null
+  CuentasRuta: number
+  Trabajadas: number
+  Pendientes: number
+  AvancePct: number
+  Usuarios: number
+  UltimaActividad?: string | null
 }
 
 export interface MapPointDto {
@@ -241,6 +282,53 @@ export function mapUserRouteProgress(dto: UserRouteProgressDto[]): UserRouteProg
     fotos: row.Fotos,
     ubicaciones: row.Ubicaciones,
     ultimaActividad: row.UltimaActividad,
+  }))
+}
+
+const ESTADOS: readonly CoverageEstado[] = ['trabajada', 'pendiente', 'fuera_de_ruta']
+
+function toCoverageEstado(value: string): CoverageEstado {
+  // An estado the dashboard does not know is shown as pending: never as worked.
+  return ESTADOS.includes(value as CoverageEstado) ? (value as CoverageEstado) : 'pendiente'
+}
+
+export function mapRouteCoverage(dto: CoberturaRutaDto): RouteCoverage {
+  return {
+    filial: dto.Filial ?? '',
+    zona: dto.Zona ?? '',
+    ruta: dto.Ruta ?? '',
+    cuentasRuta: dto.CuentasRuta,
+    trabajadas: dto.Trabajadas,
+    pendientes: dto.Pendientes,
+    fueraDeRuta: dto.FueraDeRuta,
+    avancePct: dto.AvancePct,
+    cuentas: (dto.Cuentas ?? []).map((row) => ({
+      cuenta: String(row.Cuenta),
+      cliente: row.Cliente ?? '',
+      direccion: row.Direccion ?? '',
+      estado: toCoverageEstado(row.Estado),
+      usuario: row.Usuario ?? null,
+      primeraActividad: row.PrimeraActividad ?? null,
+      ultimaActividad: row.UltimaActividad ?? null,
+      fotos: row.Fotos,
+      ubicaciones: row.Ubicaciones,
+      lat: row.Lat ?? null,
+      lng: row.Lng ?? null,
+    })),
+  }
+}
+
+export function mapRouteRanking(dto: CoberturaRutaResumenDto[]): RouteRankingRow[] {
+  return dto.map((row) => ({
+    filial: row.Filial ?? '',
+    zona: row.Zona ?? '',
+    ruta: row.Ruta ?? '',
+    cuentasRuta: row.CuentasRuta,
+    trabajadas: row.Trabajadas,
+    pendientes: row.Pendientes,
+    avancePct: row.AvancePct,
+    usuarios: row.Usuarios,
+    ultimaActividad: row.UltimaActividad ?? null,
   }))
 }
 

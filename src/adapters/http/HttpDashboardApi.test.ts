@@ -420,6 +420,150 @@ describe('HttpDashboardApi errors', () => {
   })
 })
 
+/** Cobertura de ruta, as the API documents it (S3): PascalCase in, camelCase out. */
+const coberturaDoc = {
+  Status: 200,
+  Title: 'Success',
+  Data: {
+    Filial: '01',
+    Zona: '02',
+    Ruta: '03',
+    CuentasRuta: 3,
+    Trabajadas: 1,
+    Pendientes: 1,
+    FueraDeRuta: 1,
+    AvancePct: 33.3,
+    Cuentas: [
+      {
+        Cuenta: 1001,
+        Cliente: 'Pulpería La Esquina',
+        Direccion: 'Calle 1',
+        Estado: 'trabajada',
+        Usuario: 'jperez',
+        PrimeraActividad: '2026-10-27T14:00:00Z',
+        UltimaActividad: '2026-10-27T15:00:00Z',
+        Fotos: 2,
+        Ubicaciones: 1,
+        Lat: 12.1364,
+        Lng: -86.2514,
+      },
+      {
+        Cuenta: 1002,
+        Cliente: null,
+        Direccion: null,
+        Estado: 'pendiente',
+        Usuario: null,
+        PrimeraActividad: null,
+        UltimaActividad: null,
+        Fotos: 0,
+        Ubicaciones: 0,
+        Lat: null,
+        Lng: null,
+      },
+      {
+        Cuenta: 1003,
+        Cliente: 'Taller Mecánica',
+        Direccion: 'Km 3',
+        Estado: 'fuera_de_ruta',
+        Usuario: 'mlopez',
+        PrimeraActividad: '2026-10-26T10:00:00Z',
+        UltimaActividad: '2026-10-26T10:00:00Z',
+        Fotos: 0,
+        Ubicaciones: 1,
+        Lat: null,
+        Lng: null,
+      },
+    ],
+  },
+}
+
+describe('HttpDashboardApi cobertura de ruta', () => {
+  it('calls the cobertura endpoint with the route as query params', async () => {
+    const mock = stubFetch(coberturaDoc)
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    await api.routeCoverage({ desde: '2026-10-01', hasta: '2026-10-27', filial: '01', zona: '02', ruta: '03' })
+
+    const { url, headers } = lastCall(mock)
+    expect(url).toBe(
+      `${API}api/dashboard/cobertura-ruta?filial=01&zona=02&ruta=03&desde=2026-10-01&hasta=2026-10-27`,
+    )
+    expect(headers.get('Authorization')).toBe('Bearer token-x')
+  })
+
+  it('maps the route totals and every account with its estado', async () => {
+    stubFetch(coberturaDoc)
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    const coverage = await api.routeCoverage({ desde: '2026-10-01', hasta: '2026-10-27', filial: '01', zona: '02', ruta: '03' })
+
+    expect(coverage).toEqual({
+      filial: '01',
+      zona: '02',
+      ruta: '03',
+      cuentasRuta: 3,
+      trabajadas: 1,
+      pendientes: 1,
+      fueraDeRuta: 1,
+      avancePct: 33.3,
+      cuentas: [
+        {
+          cuenta: '1001',
+          cliente: 'Pulpería La Esquina',
+          direccion: 'Calle 1',
+          estado: 'trabajada',
+          usuario: 'jperez',
+          primeraActividad: '2026-10-27T14:00:00Z',
+          ultimaActividad: '2026-10-27T15:00:00Z',
+          fotos: 2,
+          ubicaciones: 1,
+          lat: 12.1364,
+          lng: -86.2514,
+        },
+        {
+          cuenta: '1002',
+          cliente: '',
+          direccion: '',
+          estado: 'pendiente',
+          usuario: null,
+          primeraActividad: null,
+          ultimaActividad: null,
+          fotos: 0,
+          ubicaciones: 0,
+          lat: null,
+          lng: null,
+        },
+        {
+          cuenta: '1003',
+          cliente: 'Taller Mecánica',
+          direccion: 'Km 3',
+          estado: 'fuera_de_ruta',
+          usuario: 'mlopez',
+          primeraActividad: '2026-10-26T10:00:00Z',
+          ultimaActividad: '2026-10-26T10:00:00Z',
+          fotos: 0,
+          ubicaciones: 1,
+          lat: null,
+          lng: null,
+        },
+      ],
+    })
+  })
+
+  it('surfaces the 400 Message when filial, zona or ruta is missing', async () => {
+    stubFetch(
+      { Status: 400, Title: 'Bad Request', Message: 'Seleccioná filial, zona y ruta para ver la cobertura' },
+      400,
+    )
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    const failure = api.routeCoverage({ desde: '2026-10-01', hasta: '2026-10-27' })
+
+    await expect(failure).rejects.toBeInstanceOf(ApiError)
+    await expect(failure).rejects.toThrow('Seleccioná filial, zona y ruta para ver la cobertura')
+  })
+})
+
 describe('CambioRegistrado mapping', () => {
   it('maps the camelCase hub payload to the domain change', () => {
     expect(mapLiveChange(liveDoc)).toEqual({
@@ -459,5 +603,50 @@ describe('CambioRegistrado mapping', () => {
 
   it('builds the hub URL from the same API base', () => {
     expect(dashboardHubUrl(API)).toBe(`${API}hubs/dashboard`)
+  })
+})
+
+/** Ranking de rutas, as the API documents it (S8): PascalCase in, camelCase out. */
+const rankingDoc = {
+  Status: 200,
+  Title: 'Success',
+  Data: [
+    { Filial: '01', Zona: '02', Ruta: '03', CuentasRuta: 10, Trabajadas: 0, Pendientes: 10, AvancePct: 0, Usuarios: 0, UltimaActividad: null },
+    { Filial: '01', Zona: '02', Ruta: '04', CuentasRuta: 10, Trabajadas: 9, Pendientes: 1, AvancePct: 90, Usuarios: 2, UltimaActividad: '2026-10-27T15:00:00Z' },
+  ],
+}
+
+describe('HttpDashboardApi ranking de rutas', () => {
+  it('calls the cobertura-rutas endpoint with the unit as query param', async () => {
+    const mock = stubFetch(rankingDoc)
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    await api.routeRanking({ desde: '2026-10-01', hasta: '2026-10-27', ugestionId: '5' })
+
+    expect(lastCall(mock).url).toBe(`${API}api/dashboard/cobertura-rutas?ugestionId=5&desde=2026-10-01&hasta=2026-10-27`)
+  })
+
+  it('maps every route row, keeping a null last activity', async () => {
+    stubFetch(rankingDoc)
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    const rows = await api.routeRanking({ desde: '2026-10-01', hasta: '2026-10-27', ugestionId: '5' })
+
+    expect(rows).toEqual([
+      { filial: '01', zona: '02', ruta: '03', cuentasRuta: 10, trabajadas: 0, pendientes: 10, avancePct: 0, usuarios: 0, ultimaActividad: null },
+      { filial: '01', zona: '02', ruta: '04', cuentasRuta: 10, trabajadas: 9, pendientes: 1, avancePct: 90, usuarios: 2, ultimaActividad: '2026-10-27T15:00:00Z' },
+    ])
+  })
+
+  it('surfaces the 400 Message when neither unidad nor sucursal is given', async () => {
+    stubFetch(
+      { Status: 400, Title: 'Bad Request', Message: 'Seleccioná una unidad de gestión o sucursal para ver el ranking de rutas' },
+      400,
+    )
+    const api = new HttpDashboardApi(API, 'token-x')
+
+    await expect(api.routeRanking({ desde: '2026-10-01', hasta: '2026-10-27' })).rejects.toThrow(
+      'Seleccioná una unidad de gestión o sucursal para ver el ranking de rutas',
+    )
   })
 })

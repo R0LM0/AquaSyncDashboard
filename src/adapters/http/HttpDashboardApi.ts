@@ -22,6 +22,8 @@ import type {
   Page,
   PredioLayerProperties,
   PrediosQuery,
+  RouteCoverage,
+  RouteRankingRow,
   Session,
   SucursalLayerProperties,
   Summary,
@@ -38,12 +40,16 @@ import {
   mapLayer,
   mapLiveChange,
   mapMapPoint,
+  mapRouteCoverage,
+  mapRouteRanking,
   mapSession,
   mapSummary,
   mapUserRouteProgress,
   type AccountDetailDto,
   type CascadeOptionDto,
   type CatalogsDto,
+  type CoberturaRutaDto,
+  type CoberturaRutaResumenDto,
   type ChangesPageDto,
   type DailyProgressDto,
   type LayerDto,
@@ -149,6 +155,26 @@ export class HttpDashboardApi implements DashboardApi {
     return mapUserRouteProgress(
       await this.get<UserRouteProgressDto[]>('api/Dashboard/avance-usuario-ruta', filters),
     )
+  }
+
+  async routeCoverage(filters: Filters, signal?: AbortSignal): Promise<RouteCoverage> {
+    const { data } = await this.requestEnvelope<CoberturaRutaDto>(
+      `api/dashboard/cobertura-ruta${toQueryParams(filters)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapRouteCoverage(data)
+  }
+
+  async routeRanking(filters: Filters, signal?: AbortSignal): Promise<RouteRankingRow[]> {
+    const { data } = await this.requestEnvelope<CoberturaRutaResumenDto[]>(
+      `api/dashboard/cobertura-rutas${toQueryParams(filters)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapRouteRanking(data ?? [])
   }
 
   async mapPoints(filters: Filters): Promise<MapPoint[]> {
