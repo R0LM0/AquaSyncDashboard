@@ -18,6 +18,8 @@ export interface MapPanelProps {
   height?: number | string
   ugestionId?: string
   sucursalId?: string
+  /** True when the filters reach a filial, zona or route: frame those accounts. */
+  narrowScope?: boolean
   /** Period of the filters: the predios "trabajado" state is measured on it. */
   desde?: string
   hasta?: string
@@ -47,6 +49,7 @@ export function MapPanel({
   height = 420,
   ugestionId,
   sucursalId,
+  narrowScope = false,
   desde,
   hasta,
   home,
@@ -118,6 +121,7 @@ export function MapPanel({
         view={view}
         ugestionId={ugestionId}
         sucursalId={sucursalId}
+        narrowScope={narrowScope}
         fitKey={fitKey}
         home={home}
         homeLabel={homeLabel}

@@ -40,6 +40,7 @@ export default function MapaPage() {
               height="max(600px, calc(100vh - var(--app-chrome, 200px) - 32px))"
               ugestionId={filters.ugestionId}
               sucursalId={filters.sucursalId}
+              narrowScope={Boolean(filters.filial || filters.zona || filters.ruta)}
               desde={filters.desde}
               hasta={filters.hasta}
               home={alcance.mapa}

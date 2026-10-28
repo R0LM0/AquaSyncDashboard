@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { applyFilterPatch, scopedFilters } from '@/domain/cascade'
 import { liveDeltaSince, livePointsSince } from '@/domain/live'
 import type { Filters, Session } from '@/domain/types'
-import { lastDaysRange } from '@/shared/dates'
+import { defaultReportRange } from '@/shared/dates'
 import { cn } from '@/lib/utils'
 import { filtersToParams, paramsToFilters } from './filters/filtersUrl'
 import { useCascadeOptions } from './filters/useCascadeOptions'
@@ -40,7 +40,6 @@ const ExportCharts = lazy(() =>
 )
 
 const PAGE_SIZE = 15
-const DAYS_IN_RANGE = 30
 
 export interface DashboardLayoutProps {
   session: Session
@@ -53,7 +52,7 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const api = useDashboardApi()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const defaultRange = useMemo(() => lastDaysRange(DAYS_IN_RANGE), [])
+  const defaultRange = useMemo(() => defaultReportRange(), [])
   const search = searchParams.toString()
   // The scope is applied to every read of the URL: a restricted user never leaves its unidad.
   const filters = useMemo(

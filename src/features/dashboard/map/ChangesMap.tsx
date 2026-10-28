@@ -180,6 +180,7 @@ function FocusController({
   sucursalLayer,
   ugestionId,
   sucursalId,
+  narrowScope,
   fitKey,
 }: {
   points: MapPoint[]
@@ -187,12 +188,19 @@ function FocusController({
   sucursalLayer?: MapLayer<SucursalLayerProperties>
   ugestionId?: string
   sucursalId?: string
+  /** True when the filters reach a zona, a filial or a route. */
+  narrowScope: boolean
   fitKey: string
 }) {
   const map = useMap()
   const lastKey = useRef<string | null>(null)
 
   const target = useMemo(() => {
+    // A route/zone/filial filter is about the accounts of that route: frame them,
+    // deep enough for the lots layer to start answering (zoom >= 15).
+    if (narrowScope && points.length > 0) {
+      return { kind: 'points', points, maxZoom: 16 } as const
+    }
     if (ugestionId) {
       const feature = ugestionLayer?.collection.features.find(
         (candidate) => String(candidate.properties.id) === ugestionId,
@@ -205,10 +213,10 @@ function FocusController({
       )
       if (feature) return { kind: 'sucursal', feature } as const
     }
-    return points.length > 0 ? ({ kind: 'points', points } as const) : undefined
-  }, [points, ugestionLayer, sucursalLayer, ugestionId, sucursalId])
+    return points.length > 0 ? ({ kind: 'points', points, maxZoom: 13 } as const) : undefined
+  }, [points, ugestionLayer, sucursalLayer, ugestionId, sucursalId, narrowScope])
 
-  const wantsBoundary = Boolean(ugestionId || sucursalId)
+  const wantsBoundary = !narrowScope && Boolean(ugestionId || sucursalId)
 
   useEffect(() => {
     if (!target) return
@@ -223,7 +231,7 @@ function FocusController({
       const bounds = L.latLngBounds(
         target.points.map((point) => [point.lat, point.lng] as [number, number]),
       )
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 13 })
+      map.fitBounds(bounds, { padding: [32, 32], maxZoom: target.maxZoom })
       return
     }
 
@@ -310,6 +318,8 @@ export interface ChangesMapProps {
   view?: MapView
   ugestionId?: string
   sucursalId?: string
+  /** A route-level filter: frame the accounts of that route instead of the polygon. */
+  narrowScope?: boolean
   /** Only a change here re-frames the map: live events never do. */
   fitKey?: string
   /** Where the map starts and returns to: the user's scope (Alcance.Mapa). */
@@ -332,6 +342,7 @@ export function ChangesMap({
   view = { bbox: NICARAGUA_BBOX, zoom: 7 },
   ugestionId,
   sucursalId,
+  narrowScope = false,
   fitKey = 'initial',
   home = NICARAGUA_HOME,
   homeLabel = 'Centrar en Nicaragua',
@@ -371,6 +382,7 @@ export function ChangesMap({
           sucursalLayer={layers?.sucursales}
           ugestionId={ugestionId}
           sucursalId={sucursalId}
+          narrowScope={narrowScope}
           fitKey={fitKey}
         />
 

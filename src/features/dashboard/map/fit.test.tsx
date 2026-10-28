@@ -20,7 +20,12 @@ const base: MapPoint = {
 // Far enough to stay its own marker at the fitted zoom (no clustering).
 const second: MapPoint = { ...base, cuenta: 'CTA-2', lat: 13.9, lng: -84.4 }
 
-function renderMap(points: MapPoint[], fitKey: string, ugestionId?: string) {
+function renderMap(
+  points: MapPoint[],
+  fitKey: string,
+  ugestionId?: string,
+  narrowScope = false,
+) {
   const api = new MockDashboardApi({ today: new Date(2026, 9, 27) })
   // The real app hands a stable callback (openAccount is memoized in the layout).
   const onSelectAccount = vi.fn()
@@ -31,6 +36,7 @@ function renderMap(points: MapPoint[], fitKey: string, ugestionId?: string) {
         points={nextPoints}
         fitKey={nextFitKey}
         ugestionId={ugestionId}
+        narrowScope={narrowScope}
         onSelectAccount={onSelectAccount}
         height={320}
       />
@@ -114,6 +120,24 @@ describe('map fitting', () => {
     expect(L.Map.prototype.fitBounds).toHaveBeenCalledTimes(1)
 
     onSelectAccount.mockReset()
+  })
+
+  it('frames the accounts of the route and zooms in enough to load the lots', async () => {
+    renderMap([base, second], 'filters-ruta-03', undefined, true)
+
+    await waitFor(() => expect(L.Map.prototype.fitBounds).toHaveBeenCalledTimes(1))
+    const options = vi.mocked(L.Map.prototype.fitBounds).mock.calls[0][1] as { maxZoom?: number }
+
+    // >= 15 is where the API starts answering lots for the framed box.
+    expect(options?.maxZoom).toBeGreaterThanOrEqual(15)
+  })
+
+  it('keeps the country-friendly zoom when the filter is not route level', async () => {
+    renderMap([base, second], 'filters-all')
+    await waitFor(() => expect(L.Map.prototype.fitBounds).toHaveBeenCalledTimes(1))
+
+    const options = vi.mocked(L.Map.prototype.fitBounds).mock.calls[0][1] as { maxZoom?: number }
+    expect(options?.maxZoom).toBe(13)
   })
 
   it('re-frames when the filters change', async () => {

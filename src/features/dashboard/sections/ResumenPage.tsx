@@ -57,6 +57,7 @@ export default function ResumenPage() {
               height="max(560px, 65vh)"
               ugestionId={filters.ugestionId}
               sucursalId={filters.sucursalId}
+              narrowScope={Boolean(filters.filial || filters.zona || filters.ruta)}
               desde={filters.desde}
               hasta={filters.hasta}
               home={alcance.mapa}
