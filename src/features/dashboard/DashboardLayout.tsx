@@ -221,6 +221,7 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
     },
     openAccount,
     fitKey,
+    onSessionExpired: onLogout,
   }
 
   const sidebar = (isDrawer: boolean) => (

@@ -1,6 +1,6 @@
 import { ALCANCE_PAIS } from '../../domain/alcance'
 import type { CascadeLevel, CascadeParents } from '../../domain/cascade'
-import { ForbiddenError, NotFoundError } from '../../domain/errors'
+import { ApiError, ForbiddenError, NotFoundError } from '../../domain/errors'
 import type {
   Alcance,
   AccountDetail,
@@ -16,6 +16,9 @@ import type {
   PredioEstado,
   PredioLayerProperties,
   PrediosQuery,
+  CoverageAccount,
+  RouteCoverage,
+  RouteRankingRow,
   SucursalLayerProperties,
   Summary,
   UgestionLayerProperties,
@@ -233,6 +236,141 @@ export class MockDashboardApi implements DashboardApi {
     return [...rows.values()]
       .map(({ cuentas, ...row }) => ({ ...row, cuentasTrabajadas: cuentas.size }))
       .sort((a, b) => a.usuario.localeCompare(b.usuario))
+  }
+
+  /**
+   * Roster of the route (pendiente or trabajada) plus, as fuera de ruta, two accounts of a
+   * neighbouring route of the same zona that were worked in the period: the mock has no
+   * history table, so "worked with this route, no longer on its roster" is simulated this way.
+   */
+  async routeCoverage(input: Filters): Promise<RouteCoverage> {
+    if (!input.filial || !input.zona || !input.ruta) {
+      throw new ApiError('Seleccioná filial, zona y ruta para ver la cobertura', 400, 'Bad Request')
+    }
+
+    const filters = enforceScope(input, this.scope)
+    const eventsByAccount = groupByAccount(this.matchingEvents(filters))
+    const roster = this.dataset.accounts
+      .filter((account) => {
+        const meta = this.meta.get(account.cuenta)
+        return meta !== undefined && matchesScope(meta, filters)
+      })
+      .map((account) => this.coverageRow(account.cuenta, 'trabajada', eventsByAccount.get(account.cuenta)))
+
+    const neighbours = groupByAccount(
+      this.matchingEvents({ ...filters, ruta: undefined }).filter((event) => {
+        const meta = this.meta.get(event.cuenta)
+        return meta !== undefined && meta.ruta !== input.ruta && meta.zona === input.zona && meta.filial === input.filial
+      }),
+    )
+    const outOfRoster = [...neighbours.keys()]
+      .sort(compareCuenta)
+      .slice(0, MOCK_FUERA_DE_RUTA)
+      .map((cuenta) => this.coverageRow(cuenta, 'fuera_de_ruta', neighbours.get(cuenta)))
+
+    const rows = [...roster, ...outOfRoster].sort(byEstadoThenCuenta)
+    const trabajadas = rows.filter((row) => row.estado === 'trabajada').length
+    const pendientes = rows.filter((row) => row.estado === 'pendiente').length
+    const fueraDeRuta = rows.filter((row) => row.estado === 'fuera_de_ruta').length
+    const cuentasRuta = roster.length
+
+    return {
+      filial: input.filial,
+      zona: input.zona,
+      ruta: input.ruta,
+      cuentasRuta,
+      trabajadas,
+      pendientes,
+      fueraDeRuta,
+      avancePct: cuentasRuta > 0 ? Math.round((trabajadas * 1000) / cuentasRuta) / 10 : 0,
+      cuentas: rows,
+    }
+  }
+
+  /** An account with events is `estado` (worked); one without events is pending. */
+  private coverageRow(cuenta: string, estado: CoverageAccount['estado'], events: MockEvent[] | undefined): CoverageAccount {
+    const meta = this.meta.get(cuenta)
+    const ordered = [...(events ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha))
+    const first = ordered[0]
+    const last = ordered[ordered.length - 1]
+    const fotos = ordered.filter((event) => event.tipoCambio === 'FotoNueva' || event.tipoCambio === 'FotoActualizada').length
+
+    return {
+      cuenta,
+      cliente: meta?.cliente ?? '',
+      direccion: mockAddress(cuenta),
+      estado: last ? estado : 'pendiente',
+      usuario: last?.usuario ?? null,
+      primeraActividad: first?.fecha ?? null,
+      ultimaActividad: last?.fecha ?? null,
+      fotos,
+      ubicaciones: ordered.length - fotos,
+      lat: meta?.lat ?? null,
+      lng: meta?.lng ?? null,
+    }
+  }
+
+  /**
+   * Every route of the unit, roster included: a route with no worked account is listed with
+   * zero, so the ranking shows what has not started. Worst avance first, then the route code.
+   */
+  async routeRanking(input: Filters): Promise<RouteRankingRow[]> {
+    const filters = enforceScope(input, this.scope)
+    if (!filters.ugestionId && !filters.sucursalId) {
+      throw new ApiError('Seleccioná una unidad de gestión o sucursal para ver el ranking de rutas', 400, 'Bad Request')
+    }
+
+    const routeOf = (cuenta: string) => {
+      const meta = this.meta.get(cuenta)
+      return meta ? `${meta.filial}|${meta.zona}|${meta.ruta}` : ''
+    }
+    const rosterByRoute = new Map<string, Set<string>>()
+    for (const account of this.dataset.accounts) {
+      const meta = this.meta.get(account.cuenta)
+      if (!meta || !matchesScope(meta, filters)) continue
+      const key = routeOf(account.cuenta)
+      const set = rosterByRoute.get(key) ?? new Set<string>()
+      set.add(account.cuenta)
+      rosterByRoute.set(key, set)
+    }
+
+    const eventsByRoute = new Map<string, MockEvent[]>()
+    for (const event of this.matchingEvents(filters)) {
+      const key = routeOf(event.cuenta)
+      if (!rosterByRoute.has(key)) continue
+      const list = eventsByRoute.get(key) ?? []
+      list.push(event)
+      eventsByRoute.set(key, list)
+    }
+
+    const rows: RouteRankingRow[] = [...rosterByRoute.entries()].map(([key, roster]) => {
+      const [filial, zona, ruta] = key.split('|')
+      const events = eventsByRoute.get(key) ?? []
+      const worked = new Set(events.map((event) => event.cuenta))
+      const cuentasRuta = roster.size
+      const trabajadas = worked.size
+      const ultima = events.reduce<string | null>((latest, event) => (latest === null || event.fecha > latest ? event.fecha : latest), null)
+
+      return {
+        filial,
+        zona,
+        ruta,
+        cuentasRuta,
+        trabajadas,
+        pendientes: cuentasRuta - trabajadas,
+        avancePct: cuentasRuta > 0 ? Math.round((trabajadas * 1000) / cuentasRuta) / 10 : 0,
+        usuarios: new Set(events.map((event) => event.usuario)).size,
+        ultimaActividad: ultima,
+      }
+    })
+
+    return rows.sort(
+      (a, b) =>
+        a.avancePct - b.avancePct ||
+        compareCuenta(a.filial, b.filial) ||
+        compareCuenta(a.zona, b.zona) ||
+        compareCuenta(a.ruta, b.ruta),
+    )
   }
 
   async mapPoints(input: Filters): Promise<MapPoint[]> {
@@ -551,6 +689,37 @@ export class MockDashboardApi implements DashboardApi {
       return isWithinRange(dateKeyOf(event.fecha), filters.desde, filters.hasta)
     })
   }
+}
+
+const MOCK_FUERA_DE_RUTA = 2
+
+const ESTADO_ORDER: Record<CoverageAccount['estado'], number> = {
+  pendiente: 0,
+  trabajada: 1,
+  fuera_de_ruta: 2,
+}
+
+function groupByAccount(events: MockEvent[]): Map<string, MockEvent[]> {
+  const grouped = new Map<string, MockEvent[]>()
+  for (const event of events) {
+    const list = grouped.get(event.cuenta) ?? []
+    list.push(event)
+    grouped.set(event.cuenta, list)
+  }
+  return grouped
+}
+
+function compareCuenta(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true })
+}
+
+function byEstadoThenCuenta(a: CoverageAccount, b: CoverageAccount): number {
+  return ESTADO_ORDER[a.estado] - ESTADO_ORDER[b.estado] || compareCuenta(a.cuenta, b.cuenta)
+}
+
+/** The mock accounts have no street address: a stable one per account keeps the views honest. */
+function mockAddress(cuenta: string): string {
+  return `Sector ${(Number(cuenta) % 40) + 1}, casa ${cuenta.slice(-3)}`
 }
 
 function matchesScope(meta: AccountMeta, filters: Filters): boolean {

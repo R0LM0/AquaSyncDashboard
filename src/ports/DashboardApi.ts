@@ -12,6 +12,8 @@ import type {
   Page,
   PredioLayerProperties,
   PrediosQuery,
+  RouteCoverage,
+  RouteRankingRow,
   Session,
   SucursalLayerProperties,
   Summary,
@@ -36,6 +38,10 @@ export interface DashboardApi {
   summary(filters: Filters): Promise<Summary>
   dailyProgress(filters: Filters): Promise<DailyProgress[]>
   userRouteProgress(filters: Filters): Promise<UserRouteProgress[]>
+  /** Accounts of one route (filial, zona and ruta are required) and whether each was worked. */
+  routeCoverage(filters: Filters, signal?: AbortSignal): Promise<RouteCoverage>
+  /** Every route of the unit (ugestión or sucursal is required), worst avance first. */
+  routeRanking(filters: Filters, signal?: AbortSignal): Promise<RouteRankingRow[]>
   mapPoints(filters: Filters): Promise<MapPoint[]>
   changes(filters: Filters, page: number, pageSize: number): Promise<Page<ChangeRow>>
   /** Every row matching the filters; the HTTP adapter walks the API pages. */

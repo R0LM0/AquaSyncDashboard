@@ -109,6 +109,52 @@ export interface UserRouteProgress {
   ultimaActividad: string
 }
 
+/** Where an account of the route stands: worked, still pending, or worked but no longer on the roster. */
+export type CoverageEstado = 'trabajada' | 'pendiente' | 'fuera_de_ruta'
+
+export interface CoverageAccount {
+  cuenta: string
+  cliente: string
+  direccion: string
+  estado: CoverageEstado
+  /** Last user who worked the account; null while pending. */
+  usuario: string | null
+  primeraActividad: string | null
+  ultimaActividad: string | null
+  fotos: number
+  ubicaciones: number
+  lat: number | null
+  lng: number | null
+}
+
+export interface RouteCoverage {
+  filial: string
+  zona: string
+  ruta: string
+  cuentasRuta: number
+  trabajadas: number
+  pendientes: number
+  fueraDeRuta: number
+  /** Trabajadas over the roster, one decimal; 0 when the route has no accounts. */
+  avancePct: number
+  cuentas: CoverageAccount[]
+}
+
+/** One route of the ranking: every route of the unit, including the ones with no work yet. */
+export interface RouteRankingRow {
+  filial: string
+  zona: string
+  ruta: string
+  cuentasRuta: number
+  trabajadas: number
+  pendientes: number
+  /** Trabajadas over the roster, one decimal. */
+  avancePct: number
+  /** Distinct users who worked the route in the period. */
+  usuarios: number
+  ultimaActividad: string | null
+}
+
 export interface MapPoint {
   cuenta: string
   cliente: string

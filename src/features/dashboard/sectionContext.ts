@@ -29,6 +29,8 @@ export interface SectionContextValue {
     error: string | null
     exportReport: (kind: 'excel' | 'pdf') => void
   }
+  /** A 401 outside login: the session is closed and the app goes to /login. */
+  onSessionExpired: () => void
   /** Opens the account panel for a map point. */
   openAccount: (cuenta: string) => void
   /** Changes only when the filters change: the map re-frames on it, never on live data. */
