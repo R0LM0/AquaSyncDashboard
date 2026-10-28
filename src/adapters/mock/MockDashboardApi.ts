@@ -299,6 +299,7 @@ export class MockDashboardApi implements DashboardApi {
       cuenta,
       cliente: meta?.cliente ?? '',
       direccion: mockAddress(cuenta),
+      numeroCatastral: meta ? `${meta.zona}.${meta.ruta}.${cuenta.slice(-4)}` : '',
       estado: last ? estado : 'pendiente',
       usuario: last?.usuario ?? null,
       primeraActividad: first?.fecha ?? null,

@@ -162,8 +162,13 @@ export function buildCoveragePdf(coverage: RouteCoverage, generatedAt: Date): js
 
   autoTable(doc, {
     startY: usersEnd + 11,
-    head: [['Cuenta', 'Cliente', 'Dirección']],
-    body: pending.map((account) => [account.cuenta, account.cliente || '—', account.direccion || '—']),
+    head: [['Cuenta', 'N° catastral', 'Cliente', 'Dirección']],
+    body: pending.map((account) => [
+      account.cuenta,
+      account.numeroCatastral || '—',
+      account.cliente || '—',
+      account.direccion || '—',
+    ]),
     margin: { left: MARGIN, right: MARGIN, bottom: 14 },
     styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 1.6, textColor: [17, 26, 43], lineColor: [226, 232, 240], lineWidth: 0.1 },
     headStyles: { fillColor: rgb(ESTADO_COLORS.pendiente), textColor: [255, 255, 255], fontStyle: 'bold' },

@@ -1,6 +1,26 @@
 import type { CoverageAccount, CoverageEstado, RouteCoverage } from '@/domain/types'
 import { localDateKey } from '@/shared/dates'
 
+function normalize(value: string): string {
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+/** Accounts of one tab matching the search by cuenta, número catastral, cliente or dirección. */
+export function filterCoverageAccounts(
+  accounts: CoverageAccount[],
+  estado: CoverageEstado,
+  query: string,
+): CoverageAccount[] {
+  const needle = normalize(query.trim())
+  return accounts.filter((account) => {
+    if (account.estado !== estado) return false
+    if (!needle) return true
+    return [account.cuenta, account.numeroCatastral, account.cliente, account.direccion].some((field) =>
+      normalize(field).includes(needle),
+    )
+  })
+}
+
 export const ESTADO_LABELS: Record<CoverageEstado, string> = {
   trabajada: 'Trabajadas',
   pendiente: 'Pendientes',

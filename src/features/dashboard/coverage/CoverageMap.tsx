@@ -33,12 +33,15 @@ function popupHtml(account: CoverageAccount, mapsUrl: string | null): string {
 
   return [
     `<strong>Cuenta ${escapeHtml(account.cuenta)}</strong>`,
+    account.numeroCatastral ? `N° catastral ${escapeHtml(account.numeroCatastral)}` : '',
     escapeHtml(account.cliente || 'Sin nombre de cliente'),
     escapeHtml(account.direccion || 'Sin dirección'),
     `${escapeHtml(ESTADO_LABELS[account.estado])}${who}`,
     escapeHtml(when),
     `<div class="coverage-popup-actions">${actions.join(' ')}</div>`,
-  ].join('<br/>')
+  ]
+    .filter(Boolean)
+    .join('<br/>')
 }
 
 /**
