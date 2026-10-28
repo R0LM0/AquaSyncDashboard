@@ -364,8 +364,16 @@ describe('HttpDashboardApi reports', () => {
 })
 
 describe('HttpDashboardApi errors', () => {
-  it('shows the envelope Title for a 400', async () => {
-    stubFetch({ Status: 400, Title: 'Rango inválido', Message: 'El rango máximo es 366 días' }, 400)
+  it('shows the envelope Message for a 400 (the real API sends Title "Bad Request")', async () => {
+    stubFetch({ Status: 400, Title: 'Bad Request', Message: 'El rango máximo es 366 días' }, 400)
+
+    await expect(new HttpDashboardApi(API, 't').summary(filters)).rejects.toThrow(
+      'El rango máximo es 366 días',
+    )
+  })
+
+  it('falls back to the envelope Title for a 400 without Message', async () => {
+    stubFetch({ Status: 400, Title: 'Rango inválido' }, 400)
 
     await expect(new HttpDashboardApi(API, 't').summary(filters)).rejects.toThrow('Rango inválido')
   })

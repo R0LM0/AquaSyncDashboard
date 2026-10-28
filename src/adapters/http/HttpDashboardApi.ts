@@ -203,6 +203,7 @@ function toApiError(
     return new SessionExpiredError()
   }
 
-  // A 400 carries the reason in Title (invalid filters, blank credentials, pagination).
-  return new ApiError(title || message || `La API respondió ${status}`, status, title)
+  // A 400 carries the reason in Message (invalid filters, blank credentials, pagination);
+  // the API's Title is only the generic "Bad Request".
+  return new ApiError(message || title || `La API respondió ${status}`, status, title)
 }
