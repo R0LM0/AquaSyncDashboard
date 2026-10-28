@@ -257,7 +257,7 @@ function CoverageView({ coverage, routeKey }: { coverage: RouteCoverage; routeKe
         <CardHeader>
           <div>
             <CardTitle>Cuentas de la ruta</CardTitle>
-            <CardDescription>Pendientes, trabajadas y fuera de ruta, con búsqueda por cuenta, cliente o dirección</CardDescription>
+            <CardDescription>Pendientes, trabajadas y fuera de ruta, con búsqueda por cuenta, N° catastral, cliente o dirección</CardDescription>
           </div>
         </CardHeader>
         <CoverageTables accounts={coverage.cuentas} onLocate={locate} />

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { CoverageAccount } from '@/domain/types'
-import { coverageSlices, workedPerDay, workedPerUser } from './coverageAggregates'
+import { coverageSlices, filterCoverageAccounts, workedPerDay, workedPerUser } from './coverageAggregates'
 
 function account(overrides: Partial<CoverageAccount> & Pick<CoverageAccount, 'cuenta' | 'estado'>): CoverageAccount {
   return {
     cliente: '',
     direccion: '',
+    numeroCatastral: '',
     usuario: null,
     primeraActividad: null,
     ultimaActividad: null,
@@ -71,5 +72,27 @@ describe('coverageSlices', () => {
     const slices = coverageSlices([account({ cuenta: '1', estado: 'pendiente' })])
 
     expect(slices.map((slice) => slice.estado)).toEqual(['pendiente'])
+  })
+})
+
+describe('filterCoverageAccounts', () => {
+  const accounts = [
+    account({ cuenta: '641659', estado: 'pendiente', cliente: 'Digna Gutiérrez', numeroCatastral: '1.12.1420' }),
+    account({ cuenta: '641665', estado: 'pendiente', direccion: 'Puesto público', numeroCatastral: '1.12.1409' }),
+    account({ cuenta: '700001', estado: 'trabajada', numeroCatastral: '1.12.1420' }),
+  ]
+
+  it('finds an account of the tab by its cadastral number', () => {
+    expect(filterCoverageAccounts(accounts, 'pendiente', '1.12.1420').map((a) => a.cuenta)).toEqual(['641659'])
+  })
+
+  it('still searches by cuenta, cliente and dirección, ignoring accents', () => {
+    expect(filterCoverageAccounts(accounts, 'pendiente', '641665').map((a) => a.cuenta)).toEqual(['641665'])
+    expect(filterCoverageAccounts(accounts, 'pendiente', 'gutierrez').map((a) => a.cuenta)).toEqual(['641659'])
+    expect(filterCoverageAccounts(accounts, 'pendiente', 'publico').map((a) => a.cuenta)).toEqual(['641665'])
+  })
+
+  it('returns the whole tab when the query is blank', () => {
+    expect(filterCoverageAccounts(accounts, 'pendiente', '  ')).toHaveLength(2)
   })
 })

@@ -79,12 +79,13 @@ export function listSheet(
 }
 
 function accountRow(account: CoverageAccount): Cell[] {
-  return [Number(account.cuenta), cellValue(account.cliente), cellValue(account.direccion)]
+  return [Number(account.cuenta), cellValue(account.numeroCatastral), cellValue(account.cliente), cellValue(account.direccion)]
 }
 
 function workedRow(account: CoverageAccount): Cell[] {
   return [
     Number(account.cuenta),
+    cellValue(account.numeroCatastral),
     cellValue(account.cliente),
     cellValue(account.direccion),
     account.usuario,
@@ -173,8 +174,8 @@ export function buildCoverageWorkbook(coverage: RouteCoverage, generatedAt: Date
     workbook,
     ESTADO_LABELS.pendiente,
     title,
-    ['Cuenta', 'Cliente', 'Dirección'],
-    [14, 36, 40],
+    ['Cuenta', 'N° catastral', 'Cliente', 'Dirección'],
+    [14, 16, 36, 40],
     pending.map(accountRow),
     ESTADO_COLORS.pendiente,
   )
@@ -182,8 +183,8 @@ export function buildCoverageWorkbook(coverage: RouteCoverage, generatedAt: Date
     workbook,
     ESTADO_LABELS.trabajada,
     title,
-    ['Cuenta', 'Cliente', 'Dirección', 'Usuario', 'Primera actividad', 'Última actividad', 'Fotos', 'Ubicaciones'],
-    [14, 32, 36, 16, 18, 18, 10, 13],
+    ['Cuenta', 'N° catastral', 'Cliente', 'Dirección', 'Usuario', 'Primera actividad', 'Última actividad', 'Fotos', 'Ubicaciones'],
+    [14, 16, 32, 36, 16, 18, 18, 10, 13],
     worked.map(workedRow),
     ESTADO_COLORS.trabajada,
   )

@@ -13,6 +13,7 @@ function account(cuenta: string, estado: CoverageAccount['estado']): CoverageAcc
     cuenta,
     cliente: '',
     direccion: '',
+    numeroCatastral: '',
     estado,
     usuario: null,
     primeraActividad: null,

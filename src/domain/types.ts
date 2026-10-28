@@ -116,6 +116,8 @@ export interface CoverageAccount {
   cuenta: string
   cliente: string
   direccion: string
+  /** zona.ruta.cuenta from SIGIL; empty when off-route or incomplete. */
+  numeroCatastral: string
   estado: CoverageEstado
   /** Last user who worked the account; null while pending. */
   usuario: string | null

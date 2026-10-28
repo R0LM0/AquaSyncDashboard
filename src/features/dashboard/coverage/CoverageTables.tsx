@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { formatDateTime } from '@/shared/format'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '../EmptyState'
-import { ESTADO_LABELS } from './coverageAggregates'
+import { ESTADO_LABELS, filterCoverageAccounts } from './coverageAggregates'
 import { googleMapsSearchUrl } from './coverageLayers'
 
 /** Pendientes and Trabajadas always; Fuera de ruta only when there is any. */
@@ -16,10 +16,6 @@ function visibleTabs(accounts: CoverageAccount[]): CoverageEstado[] {
 }
 
 /** Accent-insensitive and case-insensitive, so a search for "perez" finds "Pérez". */
-function normalize(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-}
-
 function dateCell(iso: string | null): string {
   return iso ? formatDateTime(iso) : '—'
 }
@@ -64,16 +60,7 @@ export function CoverageTables({
   const tab = tabs.includes(requested) ? requested : 'pendiente'
   const worked = tab !== 'pendiente'
 
-  const rows = useMemo(() => {
-    const needle = normalize(query.trim())
-    return accounts.filter((account) => {
-      if (account.estado !== tab) return false
-      if (!needle) return true
-      return [account.cuenta, account.cliente, account.direccion].some((field) =>
-        normalize(field).includes(needle),
-      )
-    })
-  }, [accounts, tab, query])
+  const rows = useMemo(() => filterCoverageAccounts(accounts, tab, query), [accounts, tab, query])
 
   return (
     <div className="space-y-3">
@@ -106,7 +93,7 @@ export function CoverageTables({
         <div className="sm:w-72">
           <Input
             aria-label="Buscar por cuenta, cliente o dirección"
-            placeholder="Cuenta, cliente o dirección"
+            placeholder="Cuenta, N° catastral, cliente o dirección"
             icon={<Search className="size-4" aria-hidden="true" />}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -122,6 +109,7 @@ export function CoverageTables({
             <thead className="sticky top-0 bg-surface">
               <tr className="text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">
                 <th className="border-b border-border-subtle px-2 py-2">Cuenta</th>
+                <th className="border-b border-border-subtle px-2 py-2">N° catastral</th>
                 <th className="border-b border-border-subtle px-2 py-2">Cliente</th>
                 <th className="border-b border-border-subtle px-2 py-2">Dirección</th>
                 {worked ? (
@@ -141,6 +129,9 @@ export function CoverageTables({
                 <tr key={account.cuenta} className="transition-colors hover:bg-surface-2/70">
                   <td className="border-b border-border-subtle px-2 py-2 text-xs font-semibold tabular-nums text-fg">
                     {account.cuenta}
+                  </td>
+                  <td className="border-b border-border-subtle px-2 py-2 text-xs tabular-nums text-fg">
+                    {account.numeroCatastral || '—'}
                   </td>
                   <td className="border-b border-border-subtle px-2 py-2 text-xs text-fg">{account.cliente || '—'}</td>
                   <td className="border-b border-border-subtle px-2 py-2 text-xs text-muted-fg">

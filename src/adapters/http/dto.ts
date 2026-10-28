@@ -87,6 +87,7 @@ export interface CoberturaCuentaDto {
   Cuenta: number
   Cliente?: string | null
   Direccion?: string | null
+  NumeroCatastral?: string | null
   Estado: string
   Usuario?: string | null
   PrimeraActividad?: string | null
@@ -306,6 +307,7 @@ export function mapRouteCoverage(dto: CoberturaRutaDto): RouteCoverage {
       cuenta: String(row.Cuenta),
       cliente: row.Cliente ?? '',
       direccion: row.Direccion ?? '',
+      numeroCatastral: row.NumeroCatastral ?? '',
       estado: toCoverageEstado(row.Estado),
       usuario: row.Usuario ?? null,
       primeraActividad: row.PrimeraActividad ?? null,
