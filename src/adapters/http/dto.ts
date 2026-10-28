@@ -302,7 +302,7 @@ export function mapRouteCoverage(dto: CoberturaRutaDto): RouteCoverage {
     pendientes: dto.Pendientes,
     fueraDeRuta: dto.FueraDeRuta,
     avancePct: dto.AvancePct,
-    cuentas: dto.Cuentas.map((row) => ({
+    cuentas: (dto.Cuentas ?? []).map((row) => ({
       cuenta: String(row.Cuenta),
       cliente: row.Cliente ?? '',
       direccion: row.Direccion ?? '',

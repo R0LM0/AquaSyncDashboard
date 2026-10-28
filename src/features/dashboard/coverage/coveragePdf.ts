@@ -49,7 +49,8 @@ function kpiCards(coverage: RouteCoverage): Array<{ label: string; value: string
 
 /** Trabajadas, fuera de ruta and pendientes as one proportional bar. */
 function drawAvanceBar(doc: jsPDF, coverage: RouteCoverage, top: number): void {
-  const total = coverage.cuentas.length
+  // Same base as the KPIs: the route roster, plus the off-route accounts drawn after it.
+  const total = coverage.cuentasRuta + coverage.fueraDeRuta
   const width = PAGE_WIDTH - MARGIN * 2
   if (total === 0) return
 
@@ -70,7 +71,7 @@ function drawAvanceBar(doc: jsPDF, coverage: RouteCoverage, top: number): void {
   doc.setTextColor(90, 107, 131)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
-  doc.text(`${coverage.trabajadas} trabajadas de ${total} cuentas`, MARGIN, top + 11)
+  doc.text(`${coverage.trabajadas} trabajadas de ${coverage.cuentasRuta} cuentas de la ruta`, MARGIN, top + 11)
 }
 
 /** Worked accounts per user as horizontal bars, the same ranking the dashboard shows. */
