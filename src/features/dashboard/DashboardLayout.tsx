@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { Outlet, useLocation, useSearchParams } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useDashboardApi } from '@/app/dashboardApiContext'
 import { currentEnvironment } from '@/app/environment'
 import {
@@ -16,12 +16,12 @@ import { liveDeltaSince, livePointsSince } from '@/domain/live'
 import type { Filters, Session } from '@/domain/types'
 import { defaultReportRange } from '@/shared/dates'
 import { cn } from '@/lib/utils'
-import { filtersToParams, paramsToFilters } from './filters/filtersUrl'
+import { restoreFilters, saveStoredFilters } from './filters/filtersStorage'
 import { useCascadeOptions } from './filters/useCascadeOptions'
 import { SectionSkeleton } from './SectionSkeleton'
 import { AccountPanel } from './account/AccountPanel'
 import { Sidebar } from './Sidebar'
-import { NAV_ITEMS, readSidebarCollapsed, saveSidebarCollapsed, sectionLabel } from './SidebarNav'
+import { readSidebarCollapsed, saveSidebarCollapsed, sectionLabel } from './SidebarNav'
 import { Topbar } from './Topbar'
 import type { SectionContextValue } from './sectionContext'
 import { useChangesPage, useDashboardData, useRefreshToken } from './useDashboardData'
@@ -51,14 +51,16 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const runtimeEnvironment = environment ?? resolveRuntimeEnvironment(import.meta.env)
   const api = useDashboardApi()
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
   const defaultRange = useMemo(() => defaultReportRange(), [])
-  const search = searchParams.toString()
-  // The scope is applied to every read of the URL: a restricted user never leaves its unidad.
-  const filters = useMemo(
-    () => scopedFilters(paramsToFilters(new URLSearchParams(search), defaultRange), session.alcance),
-    [search, defaultRange, session.alcance],
+  // The filters never go to the address bar: they live in this tab's sessionStorage.
+  // The scope is applied on every write, so a restricted user never leaves its unidad.
+  const [filters, setFilters] = useState<Filters>(() =>
+    scopedFilters(restoreFilters(defaultRange), session.alcance),
   )
+
+  useEffect(() => {
+    saveStoredFilters(filters)
+  }, [filters])
 
   const [pageNumber, setPageNumber] = useState(1)
   const [refreshToken, bumpRefresh] = useRefreshToken()
@@ -71,8 +73,8 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   // "Limpiar" and a 403 both go back to the scope of the user, never to the whole country.
   const resetFilters = useCallback(() => {
     setPageNumber(1)
-    setSearchParams(filtersToParams(scopedFilters(defaultRange, session.alcance)), { replace: true })
-  }, [defaultRange, session.alcance, setSearchParams])
+    setFilters(scopedFilters(defaultRange, session.alcance))
+  }, [defaultRange, session.alcance])
 
   const data = useDashboardData(api, filters, refreshToken, onLogout, resetFilters)
   const cascade = useCascadeOptions(api, filters, onLogout)
@@ -105,16 +107,6 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
     environment: currentEnvironment(undefined, undefined, runtimeEnvironment).label,
     onSessionExpired: onLogout,
   })
-
-  // The URL always carries the whole filter set, so a view is shareable as-is.
-  // It runs only on a real section: rewriting the query while the index route is
-  // still redirecting would cancel that redirect.
-  const onSection = NAV_ITEMS.some((item) => location.pathname.startsWith(item.to))
-
-  useEffect(() => {
-    if (!onSection || searchParams.has('desde')) return
-    setSearchParams(filtersToParams(filters), { replace: true })
-  }, [filters, onSection, searchParams, setSearchParams])
 
   const known = useMemo(
     () => ({
@@ -158,9 +150,9 @@ export function DashboardLayout({ session, onLogout, environment }: DashboardLay
   const patchFilters = useCallback(
     (patch: Partial<Filters>) => {
       setPageNumber(1)
-      setSearchParams(filtersToParams(applyFilterPatch(filters, patch, session.alcance)), { replace: true })
+      setFilters(scopedFilters(applyFilterPatch(filters, patch, session.alcance), session.alcance))
     },
-    [filters, session.alcance, setSearchParams],
+    [filters, session.alcance],
   )
 
   const openAccount = useCallback((cuenta: string) => setSelectedAccount(cuenta), [])
