@@ -40,12 +40,49 @@ export function readSession(
     ) {
       // A session saved before the Alcance existed is treated as logged out.
       const session = parsed as Session
-      if (session.token && session.usuario && isAlcance(session.alcance)) return session
+      if (
+        session.token &&
+        session.usuario &&
+        isAlcance(session.alcance) &&
+        !isTokenExpired(session.token)
+      ) {
+        return session
+      }
     }
     return null
   } catch {
     return null
   }
+}
+
+/**
+ * The UTC instant (ms) a JWT expires at, read from its `exp` claim (seconds).
+ * Undefined for any token that is not a JWT with a numeric exp: its expiry is unknown.
+ */
+export function tokenExpiresAt(token: string): number | undefined {
+  const payload = token.split('.')[1]
+  if (!payload) return undefined
+
+  try {
+    const base64 = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payload.length / 4) * 4, '=')
+    const claims: unknown = JSON.parse(atob(base64))
+    if (claims && typeof claims === 'object' && 'exp' in claims && typeof claims.exp === 'number') {
+      return claims.exp * 1000
+    }
+  } catch {
+    /* not a base64url JSON payload: the expiry is unknown */
+  }
+
+  return undefined
+}
+
+/** A token whose exp is already past. Unknown expiry counts as not expired. */
+export function isTokenExpired(token: string, now: number = Date.now()): boolean {
+  const expiresAt = tokenExpiresAt(token)
+  return expiresAt !== undefined && expiresAt <= now
 }
 
 export function saveSession(

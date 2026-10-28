@@ -28,4 +28,34 @@ describe('session', () => {
 
     expect(readSession('pruebas', store)).toBeNull()
   })
+
+  it('treats a session whose JWT exp is already past as logged out', () => {
+    const store = memoryStorage()
+    const expired = jwtWithExp(Math.floor(Date.now() / 1000) - 60)
+    saveSession({ token: expired, usuario: 'admin', nombre: 'Admin', alcance: ALCANCE_PAIS }, 'pruebas', store)
+
+    expect(readSession('pruebas', store)).toBeNull()
+  })
+
+  it('keeps a session whose JWT exp is still in the future', () => {
+    const store = memoryStorage()
+    const valid = jwtWithExp(Math.floor(Date.now() / 1000) + 3600)
+    saveSession({ token: valid, usuario: 'admin', nombre: 'Admin', alcance: ALCANCE_PAIS }, 'pruebas', store)
+
+    expect(readSession('pruebas', store)?.usuario).toBe('admin')
+  })
+
+  it('keeps a session whose token is not a JWT (the exp is unknown)', () => {
+    const store = memoryStorage()
+    saveSession({ token: 'opaque-token', usuario: 'admin', nombre: 'Admin', alcance: ALCANCE_PAIS }, 'pruebas', store)
+
+    expect(readSession('pruebas', store)?.usuario).toBe('admin')
+  })
 })
+
+/** A JWT-shaped token whose payload carries the given exp (seconds). */
+function jwtWithExp(exp: number): string {
+  const encode = (value: unknown) =>
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ exp })}.signature`
+}
