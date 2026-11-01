@@ -5,10 +5,12 @@ import type { Session } from '@/domain/types'
 import { clearSession, readSession, tokenExpiresAt } from '@/features/auth/session'
 import { DashboardLayout } from '@/features/dashboard/DashboardLayout'
 import {
+  BarridoPage,
   MapaPage,
   ReportesPage,
   ResumenPage,
   RutasPage,
+  ServiciosNuevosPage,
   UsuariosPage,
 } from '@/features/dashboard/sections'
 import {
@@ -107,6 +109,8 @@ function App({ environment, onEnvironmentChange }: AppProps = {}) {
             <Route path="/mapa" element={<MapaPage />} />
             <Route path="/avance-por-ruta" element={<RutasPage />} />
             <Route path="/usuarios" element={<UsuariosPage />} />
+            <Route path="/barrido" element={<BarridoPage />} />
+            <Route path="/servicios-nuevos" element={<ServiciosNuevosPage />} />
             <Route path="/detalle-y-reportes" element={<ReportesPage />} />
             <Route path="*" element={<Navigate to="/resumen" replace />} />
           </Route>

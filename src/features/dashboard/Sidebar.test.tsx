@@ -55,10 +55,16 @@ describe('sidebar persistence', () => {
     renderDashboard()
     await screen.findByRole('navigation', { name: 'Secciones' })
 
-    for (const label of ['Encuestas', 'Servicios nuevos', 'Metas']) {
-      expect(screen.queryByRole('link', { name: new RegExp(label) })).not.toBeInTheDocument()
-    }
-    expect(screen.getByTestId('upcoming-encuestas')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('link', { name: /Metas/ })).not.toBeInTheDocument()
     expect(screen.getByTestId('upcoming-metas')).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('links Barrido and Servicios nuevos as real sections', async () => {
+    renderDashboard()
+    await screen.findByRole('navigation', { name: 'Secciones' })
+
+    expect(screen.getByRole('link', { name: /Barrido/ })).toHaveAttribute('href', '/barrido')
+    expect(screen.getByRole('link', { name: /Servicios nuevos/ })).toHaveAttribute('href', '/servicios-nuevos')
+    expect(screen.queryByTestId('upcoming-encuestas')).not.toBeInTheDocument()
   })
 })

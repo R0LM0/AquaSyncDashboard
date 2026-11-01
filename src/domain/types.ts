@@ -322,3 +322,96 @@ export interface AccountDetail {
   fotos: AccountPhoto[]
   historial: AccountHistoryEntry[]
 }
+
+/** One Barrido assignment (user + route + period) with its survey progress. */
+export interface BarridoAsignacion {
+  usrId: string
+  usuario: string
+  cliBarridoId: string
+  filial: string
+  zona: string
+  ruta: string
+  periodoId: string
+  periodo: string
+  asignadas: number
+  encuestadas: number
+  pendientes: number
+  /** Encuestadas over asignadas, percent. */
+  avance: number
+}
+
+/** Activity per day and device alias (the stacked chart). `fecha` is a `YYYY-MM-DD` day key. */
+export interface ActividadPorDia {
+  fecha: string
+  dispositivo: string
+  cantidad: number
+}
+
+/** One phone that registered activity. `cantidad` is its surveys or registrations. */
+export interface ActividadDispositivo {
+  usuario: string
+  dispositivoId: string
+  alias: string
+  modelo: string
+  appVersion: string
+  cantidad: number
+  primera: string | null
+  ultima: string | null
+  lat: number | null
+  lng: number | null
+}
+
+export interface BarridoPunto {
+  cuenta: string
+  catastro: string
+  alias: string
+  fecha: string
+  lat: number | null
+  lng: number | null
+}
+
+export interface BarridoActividad {
+  resumen: { encuestas: number; hoy: number; dispositivos: number }
+  porDia: ActividadPorDia[]
+  dispositivos: ActividadDispositivo[]
+  puntos: BarridoPunto[]
+}
+
+/** An account of the assignment still without survey. */
+export interface BarridoPendiente {
+  clienteBarridoId: string
+  cuentaNro: string
+  catastro: string
+  cliente: string
+  direccion: string
+  lat: number | null
+  lng: number | null
+}
+
+export interface ServicioNuevoRegistro {
+  id: string
+  fecha: string
+  usuario: string
+  alias: string
+  modelo: string
+  estado: string
+  sucursal: string
+  cliente: string
+  lat: number | null
+  lng: number | null
+}
+
+export interface ServiciosNuevos {
+  resumen: { registrados: number; hoy: number; porEstado: Array<{ estado: string; cantidad: number }> }
+  porDia: ActividadPorDia[]
+  dispositivos: ActividadDispositivo[]
+  registros: ServicioNuevoRegistro[]
+}
+
+/** Live notice that a phone registered activity ("ActividadRegistrada"). */
+export interface ActividadEvento {
+  modulo: string
+  usuario: string
+  ugestionId: string | null
+  sucursalId: string | null
+}
