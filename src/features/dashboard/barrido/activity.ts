@@ -1,4 +1,4 @@
-import type { ActividadDispositivo, ActividadPorDia, BarridoAsignacion, ServicioNuevoRegistro } from '@/domain/types'
+import type { ActividadDispositivo, ActividadPorDia, BarridoAsignacion, BarridoPunto, ServicioNuevoRegistro } from '@/domain/types'
 import { localDateKey } from '@/shared/dates'
 import { trafficLight, type TrafficLight } from '../coverage/ranking/routeRanking'
 
@@ -113,4 +113,31 @@ export function filterRegistros(rows: ServicioNuevoRegistro[], query: string): S
   return rows.filter((row) =>
     matchesQuery(query, row.id, row.usuario, row.alias, row.modelo, row.estado, row.sucursal, row.cliente),
   )
+}
+
+/** A surveyed account of the Barrido table; `index` is its position in `puntos`, the map point id. */
+export interface WorkedAccount extends BarridoPunto {
+  index: number
+}
+
+/** Lower case without accents, so "perez" finds "Pérez". */
+function fold(value: string | number | null | undefined): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+/** The surveyed accounts, newest first. */
+export function sortWorkedAccounts(puntos: BarridoPunto[]): WorkedAccount[] {
+  return puntos
+    .map((punto, index) => ({ ...punto, index }))
+    .sort((a, b) => Date.parse(b.fecha) - Date.parse(a.fecha) || a.index - b.index)
+}
+
+/** Search by cuenta, catastro or device, ignoring case and accents. */
+export function filterWorkedAccounts(rows: WorkedAccount[], query: string): WorkedAccount[] {
+  const needle = fold(query.trim())
+  if (!needle) return rows
+  return rows.filter((row) => [row.cuenta, row.catastro, row.alias].some((value) => fold(value).includes(needle)))
 }

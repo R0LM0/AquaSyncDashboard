@@ -39,13 +39,15 @@ describe('barrido exports', () => {
   it('builds the sheets with their column headers', () => {
     const workbook = buildBarridoWorkbook(report, new Date(2026, 10, 1))
 
-    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Resumen', 'Asignaciones', 'Dispositivos', 'Por día', 'Encuestas'])
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Resumen', 'Asignaciones', 'Dispositivos', 'Por día', 'Encuestas', 'Cuentas trabajadas'])
     expect(headers(workbook, 'Asignaciones')).toEqual([
       'Usuario', 'Filial', 'Zona', 'Ruta', 'Período', 'Asignadas', 'Encuestadas', 'Pendientes', 'Avance (%)', 'Semáforo',
     ])
     expect(headers(workbook, 'Dispositivos')).toEqual(['Usuario', 'Alias', 'Modelo', 'Versión', 'Encuestas', 'Primera', 'Última', 'Lat', 'Lng'])
     expect(headers(workbook, 'Por día')).toEqual(['Fecha', 'Dispositivo', 'Cantidad'])
     expect(headers(workbook, 'Encuestas')).toEqual(['Cuenta', 'Catastro', 'Dispositivo', 'Fecha', 'Lat', 'Lng'])
+    expect(headers(workbook, 'Cuentas trabajadas')).toEqual(['Cuenta', 'N° catastral', 'Dispositivo', 'Fecha'])
+    expect(workbook.getWorksheet('Cuentas trabajadas')?.rowCount).toBe(2)
     expect(workbook.getWorksheet('Asignaciones')?.rowCount).toBe(2)
   })
 

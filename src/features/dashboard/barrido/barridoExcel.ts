@@ -3,7 +3,7 @@ import type { BarridoActividad, BarridoAsignacion, BarridoPendiente } from '@/do
 import { PRIMARY, listSheet, type Cell } from '../coverage/coverageExcel'
 import { REPORT_AUTHOR, REPORT_TITLE } from '../report/reportContent'
 import { TRAFFIC_LABELS } from '../coverage/ranking/routeRanking'
-import { assignmentLight, assignmentTotals } from './activity'
+import { assignmentLight, assignmentTotals, sortWorkedAccounts } from './activity'
 import { DAY_HEADERS, DAY_WIDTHS, deviceHeaders, DEVICE_WIDTHS, dayCells, deviceCells } from './activityExport'
 
 const TITLE = 'Barrido'
@@ -12,6 +12,7 @@ export const ASSIGNMENT_HEADERS = [
   'Usuario', 'Filial', 'Zona', 'Ruta', 'Período', 'Asignadas', 'Encuestadas', 'Pendientes', 'Avance (%)', 'Semáforo',
 ]
 export const SURVEY_HEADERS = ['Cuenta', 'Catastro', 'Dispositivo', 'Fecha', 'Lat', 'Lng']
+export const WORKED_HEADERS = ['Cuenta', 'N° catastral', 'Dispositivo', 'Fecha']
 export const PENDING_HEADERS = ['Cuenta', 'Catastro', 'Cliente', 'Dirección', 'Lat', 'Lng']
 
 export interface BarridoReport {
@@ -23,7 +24,7 @@ export interface BarridoReport {
   pendientes: BarridoPendiente[] | null
 }
 
-/** Resumen, Asignaciones, Dispositivos, Por día, Encuestas and (when loaded) Pendientes. */
+/** Resumen, Asignaciones, Dispositivos, Por día, Encuestas, Cuentas trabajadas and (when loaded) Pendientes. */
 export function buildBarridoWorkbook(report: BarridoReport, generatedAt: Date): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = REPORT_AUTHOR
@@ -67,6 +68,16 @@ export function buildBarridoWorkbook(report: BarridoReport, generatedAt: Date): 
     SURVEY_HEADERS,
     [12, 22, 18, 18, 11, 11],
     report.actividad.puntos.map((point) => [Number(point.cuenta), point.catastro, point.alias, new Date(point.fecha), point.lat, point.lng]),
+    PRIMARY,
+  )
+
+  listSheet(
+    workbook,
+    'Cuentas trabajadas',
+    TITLE,
+    WORKED_HEADERS,
+    [12, 22, 18, 18],
+    sortWorkedAccounts(report.actividad.puntos).map((point) => [Number(point.cuenta), point.catastro, point.alias, new Date(point.fecha)]),
     PRIMARY,
   )
 

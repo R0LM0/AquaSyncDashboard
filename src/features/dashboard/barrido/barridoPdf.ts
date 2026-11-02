@@ -5,7 +5,7 @@ import { formatNumber } from '@/shared/format'
 import { REPORT_AUTHOR, REPORT_TITLE, formatReportDateTime } from '../report/reportContent'
 import { rgb, tint } from '../coverage/coveragePdf'
 import { TRAFFIC_COLORS, TRAFFIC_LABELS } from '../coverage/ranking/routeRanking'
-import { assignmentLight, assignmentTotals } from './activity'
+import { assignmentLight, assignmentTotals, limitRows, sortWorkedAccounts } from './activity'
 import type { BarridoReport } from './barridoExcel'
 
 const PAGE_WIDTH = 297
@@ -141,6 +141,27 @@ export function buildBarridoPdf(report: BarridoReport, generatedAt: Date): jsPDF
       device.ultima ? formatReportDateTime(new Date(device.ultima)) : '—',
     ]),
   )
+
+  const worked = limitRows(sortWorkedAccounts(report.actividad.puntos))
+  if (worked.shown.length > 0) {
+    const bottom = lastTableBottom(doc) + 10
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(90, 107, 131)
+    doc.text(
+      worked.hidden > 0
+        ? `Cuentas trabajadas (las ${formatNumber(worked.shown.length)} más recientes; el resto está en el Excel)`
+        : 'Cuentas trabajadas',
+      MARGIN,
+      bottom,
+    )
+    drawTable(
+      doc,
+      bottom + 3,
+      ['Cuenta', 'N° catastral', 'Dispositivo', 'Fecha'],
+      worked.shown.map((row) => [row.cuenta, row.catastro || '—', row.alias, formatReportDateTime(new Date(row.fecha))]),
+    )
+  }
 
   drawFooters(doc)
   return doc

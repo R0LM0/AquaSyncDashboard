@@ -9,9 +9,11 @@ import {
   collectAliases,
   filterAssignments,
   filterRegistros,
+  filterWorkedAccounts,
   hasLocation,
   limitRows,
   matchesQuery,
+  sortWorkedAccounts,
   stackByDay,
 } from './activity'
 
@@ -119,5 +121,26 @@ describe('small helpers', () => {
 
   it('names the files by day', () => {
     expect(activityFileName('Barrido', 'xlsx', new Date(2026, 10, 1))).toBe('Barrido-2026-11-01.xlsx')
+  })
+})
+
+describe('worked accounts', () => {
+  const puntos = [
+    { cuenta: '100', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T10:00:00Z', lat: 1, lng: 2 },
+    { cuenta: '200', catastro: 'Ñandú-9', alias: 'Dispositivo B', fecha: '2026-11-01T12:00:00Z', lat: null, lng: null },
+    { cuenta: '300', catastro: '', alias: 'Dispositivo A', fecha: '2026-10-31T09:00:00Z', lat: 1, lng: 2 },
+  ]
+
+  it('sorts newest first and keeps the map point index', () => {
+    expect(sortWorkedAccounts(puntos).map((p) => [p.cuenta, p.index])).toEqual([['200', 1], ['100', 0], ['300', 2]])
+  })
+
+  it('searches cuenta, catastro and device ignoring case and accents', () => {
+    const rows = sortWorkedAccounts(puntos)
+    expect(filterWorkedAccounts(rows, '')).toHaveLength(3)
+    expect(filterWorkedAccounts(rows, '200').map((p) => p.cuenta)).toEqual(['200'])
+    expect(filterWorkedAccounts(rows, 'NANDU').map((p) => p.cuenta)).toEqual(['200'])
+    expect(filterWorkedAccounts(rows, 'dispositivo a')).toHaveLength(2)
+    expect(filterWorkedAccounts(rows, 'zzz')).toHaveLength(0)
   })
 })

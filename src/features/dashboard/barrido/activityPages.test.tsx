@@ -70,6 +70,28 @@ describe('Barrido page', () => {
     expect(await screen.findByRole('button', { name: /Cuentas pendientes \(\d+\)/ }, SLOW)).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('lists the worked accounts, searchable, with Ubicar', async () => {
+    renderAt('/barrido')
+    const worked = await screen.findByRole('table', { name: 'Cuentas trabajadas' }, SLOW)
+    for (const header of ['Cuenta', 'N° catastral', 'Dispositivo', 'Fecha']) {
+      expect(within(worked).getByRole('columnheader', { name: header })).toBeInTheDocument()
+    }
+    expect(within(worked).getAllByRole('row').length).toBeGreaterThan(1)
+    expect(within(worked).getAllByRole('button', { name: /^Ubicar la cuenta/ }).length).toBeGreaterThan(0)
+
+    fireEvent.change(screen.getByLabelText(/Buscar cuenta trabajada/), { target: { value: 'zzz-no-existe' } })
+    expect(await screen.findByText('Ninguna cuenta coincide con la búsqueda')).toBeInTheDocument()
+  })
+
+  it('says so when no account was worked', async () => {
+    const api = new MockDashboardApi({ today: new Date(2026, 10, 1, 12) })
+    vi.spyOn(api, 'barridoActividad').mockResolvedValue({
+      resumen: { encuestas: 0, hoy: 0, dispositivos: 0 }, porDia: [], dispositivos: [], puntos: [],
+    })
+    renderAt('/barrido', api)
+    expect(await screen.findByText('Todavía no hay cuentas trabajadas en el período', {}, SLOW)).toBeInTheDocument()
+  })
+
   it('says so when there are no assignments', async () => {
     const api = new MockDashboardApi({ today: new Date(2026, 10, 1, 12) })
     vi.spyOn(api, 'barridoAsignaciones').mockResolvedValue([])
