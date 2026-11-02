@@ -1,13 +1,13 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import { FileSpreadsheet, FileText } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
 import type { ActividadDispositivo, ActividadPorDia } from '@/domain/types'
 import { formatDateTime, formatDayKey, formatNumber } from '@/shared/format'
 import { EmptyState } from '../EmptyState'
 import { useReducedMotion } from '../useReducedMotion'
-import { AXIS_PROPS, GRID_PROPS, TOOLTIP_PROPS, chartAnimation } from '../charts/chartTheme'
-import { aliasColor, stackByDay } from './activity'
+import { AXIS_PROPS, GRID_PROPS, chartAnimation } from '../charts/chartTheme'
+import { aliasColor, stackByDay, type DayRow } from './activity'
 
 export function Kpi({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -35,28 +35,103 @@ export const TD = 'border-b border-border-subtle px-2 py-2 text-xs'
 export const THEAD = 'sticky top-0 bg-surface'
 export const THEAD_ROW = 'text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg'
 
-/** Activity per day, stacked by device alias. */
+/** Hover card of the day chart: the date, one line per device with its colour, and the day total. */
+export function DayTooltip({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean
+  label?: string | number
+  payload?: ReadonlyArray<{ name?: string | number; value?: number | string; color?: string }>
+}) {
+  if (!active || !payload || payload.length === 0) return null
+  const lines = payload.filter((item) => Number(item.value) > 0)
+  const total = lines.reduce((sum, item) => sum + Number(item.value), 0)
+
+  return (
+    <div
+      className="min-w-40 rounded-xl border border-border-subtle bg-surface px-3 py-2 text-xs shadow-panel"
+      data-testid="day-tooltip"
+    >
+      <p className="mb-1.5 font-bold text-muted-fg">{formatDayKey(String(label))}</p>
+      <ul className="space-y-1">
+        {lines.map((item) => (
+          <li key={String(item.name)} className="flex items-center justify-between gap-4 text-fg">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full" style={{ background: item.color }} aria-hidden="true" />
+              {item.name}
+            </span>
+            <span className="font-semibold tabular-nums">{formatNumber(Number(item.value))}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 flex justify-between gap-4 border-t border-border-subtle pt-1.5 font-bold text-fg">
+        <span>Total</span>
+        <span className="tabular-nums">{formatNumber(total)}</span>
+      </p>
+    </div>
+  )
+}
+
+/** Screen-reader summary: the period, the total and the busiest day. */
+export function daySummary(rows: DayRow[], aliases: string[]): string {
+  const totals = rows.map((row) => ({
+    fecha: row.fecha,
+    total: aliases.reduce((sum, alias) => sum + Number(row[alias] ?? 0), 0),
+  }))
+  const all = totals.reduce((sum, day) => sum + day.total, 0)
+  const peak = totals.reduce((best, day) => (day.total > best.total ? day : best), totals[0])
+  const first = formatDayKey(rows[0].fecha)
+  const last = formatDayKey(rows[rows.length - 1].fecha)
+  return (
+    `Actividad por día de ${aliases.length} dispositivo${aliases.length === 1 ? '' : 's'}, del ${first} al ${last}: ` +
+    `${formatNumber(all)} en total; el día más activo fue el ${formatDayKey(peak.fecha)} con ${formatNumber(peak.total)}`
+  )
+}
+
+/** Activity per day: a smooth area stacked by device, each with its own colour and a soft gradient. */
 export function DayChart({ porDia, order, emptyTitle }: { porDia: ActividadPorDia[]; order: string[]; emptyTitle: string }) {
   const reduced = useReducedMotion()
   const { rows, aliases } = useMemo(() => stackByDay(porDia), [porDia])
+  const gradientId = useId().replace(/:/g, '')
 
   if (rows.length === 0) {
     return <EmptyState title={emptyTitle} detail="Probá con otro rango de fechas o menos filtros." />
   }
 
   return (
-    <div role="img" aria-label={`Actividad por día de ${aliases.length} dispositivo${aliases.length === 1 ? '' : 's'}`}>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={rows} margin={{ top: 8, right: 10, bottom: 0, left: -12 }}>
-          <CartesianGrid {...GRID_PROPS} />
+    <div role="img" aria-label={daySummary(rows, aliases)} data-testid="day-chart">
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart data={rows} margin={{ top: 10, right: 12, bottom: 0, left: -12 }}>
+          <defs>
+            {aliases.map((alias, index) => (
+              <linearGradient key={alias} id={`${gradientId}-${index}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={aliasColor(alias, order)} stopOpacity={0.55} />
+                <stop offset="100%" stopColor={aliasColor(alias, order)} stopOpacity={0.04} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid {...GRID_PROPS} strokeOpacity={0.6} />
           <XAxis dataKey="fecha" {...AXIS_PROPS} tickFormatter={(value: string) => formatDayKey(value).slice(0, 5)} minTickGap={18} />
           <YAxis {...AXIS_PROPS} allowDecimals={false} width={44} />
-          <Tooltip {...TOOLTIP_PROPS} labelFormatter={(value) => formatDayKey(String(value))} />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-          {aliases.map((alias) => (
-            <Bar key={alias} dataKey={alias} stackId="dia" fill={aliasColor(alias, order)} {...chartAnimation(reduced)} />
+          <Tooltip content={<DayTooltip />} cursor={{ stroke: 'hsl(var(--muted-fg))', strokeDasharray: '3 3' }} />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
+          {aliases.map((alias, index) => (
+            <Area
+              key={alias}
+              type="monotone"
+              dataKey={alias}
+              name={alias}
+              stackId="dia"
+              stroke={aliasColor(alias, order)}
+              strokeWidth={2}
+              fill={`url(#${gradientId}-${index})`}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: 'hsl(var(--surface))' }}
+              {...chartAnimation(reduced)}
+            />
           ))}
-        </BarChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   )
