@@ -186,12 +186,18 @@ describe('map popup', () => {
 })
 
 describe('map popup actions', () => {
-  it('renders "Ver encuesta" as the primary red button and the rest as secondary buttons', () => {
-    const html = buildPopup('Cuenta 1', [], 12.5, -86.25, { survey: true })
+  it('renders "Ver encuesta" as the red action and the rest as compact labelled icon buttons', () => {
+    const html = buildPopup('Cuenta 1', ['N° catastral 5.75.455'], 12.5, -86.25, { survey: true })
 
-    expect(html).toContain('map-popup-btn map-popup-btn--danger" data-action="survey"')
-    expect(html).toContain('class="map-popup-btn" data-action="locate"')
-    expect(html).toContain('class="map-popup-btn" href="https://www.google.com/maps')
+    expect(html).toContain('map-popup-btn map-popup-btn--danger" data-action="survey">Ver encuesta')
+    expect(html).toContain('class="map-popup-icon" data-action="locate" aria-label="Ubicar en el mapa"')
+    expect(html).toContain('class="map-popup-icon" href="https://www.google.com/maps')
+    expect(html).toContain('aria-label="Abrir en Google Maps"')
+    expect(html).toContain('<div class="map-popup-line">N° catastral 5.75.455</div>')
+  })
+
+  it('omits "Ver encuesta" for points that are not surveys', () => {
+    expect(buildPopup('Cuenta 1', [], 12.5, -86.25)).not.toContain('data-action="survey"')
   })
 })
 
