@@ -184,3 +184,19 @@ describe('map popup', () => {
     expect(html).not.toContain('<script>')
   })
 })
+
+describe('survey detail from the worked accounts', () => {
+  it('opens the modal with the survey of the row', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:foto')
+    URL.revokeObjectURL = vi.fn()
+    const api = renderAt('/barrido')
+    const spy = vi.spyOn(api, 'barridoEncuesta')
+
+    const buttons = await screen.findAllByRole('button', { name: /Ver la encuesta de la cuenta/ }, SLOW)
+    fireEvent.click(buttons[0])
+
+    expect(await screen.findByTestId('survey-panel', {}, SLOW)).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Características', {}, SLOW)).toBeInTheDocument()
+  })
+})

@@ -244,6 +244,10 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
             emptyTitle="Ningún servicio tiene ubicación"
             emptyDetail="Los puntos aparecen cuando un celular registra un servicio con coordenadas."
             ariaLabel="Mapa de servicios nuevos"
+            ugestionId={filters.ugestionId}
+            sucursalId={filters.sucursalId}
+            desde={filters.desde}
+            hasta={filters.hasta}
           />
         </div>
       </Card>

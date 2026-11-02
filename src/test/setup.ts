@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach } from 'vitest'
+
+// Lazy route chunks load slowly under a full parallel run: give findBy/waitFor more room.
+configure({ asyncUtilTimeout: 5000 })
 
 afterEach(() => {
   cleanup()

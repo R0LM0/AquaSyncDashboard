@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { MapPin, Search } from "lucide-react";
+import { FileText, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,7 @@ import {
   type ActivityMapPoint,
 } from "./ActivityMap";
 import { buildPopup } from "./activityPopup";
+import { SurveyPanel } from "./SurveyPanel";
 import {
   DayChart,
   DeviceTable,
@@ -80,6 +81,7 @@ export function BarridoPanel({
   const [query, setQuery] = useState("");
   const [workedQuery, setWorkedQuery] = useState("");
   const [focus, setFocus] = useState<ActivityFocus | null>(null);
+  const [surveyId, setSurveyId] = useState<string | null>(null);
   const nonce = useRef(0);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState<"excel" | "pdf" | null>(null);
@@ -176,6 +178,7 @@ export function BarridoPanel({
         lng: point.lng,
         color: aliasColor(point.alias, order),
         kind: "registro",
+        surveyId: point.referenciaId || undefined,
         popup: buildPopup(
           `Cuenta ${point.cuenta}`,
           [
@@ -185,6 +188,7 @@ export function BarridoPanel({
           ],
           point.lat,
           point.lng,
+          { survey: Boolean(point.referenciaId) },
         ),
       }));
     const open: ActivityMapPoint[] =
@@ -525,6 +529,7 @@ export function BarridoPanel({
                         <Th>Dispositivo</Th>
                         <Th>Fecha</Th>
                         <Th>Mapa</Th>
+                        <Th>Encuesta</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -566,6 +571,21 @@ export function BarridoPanel({
                               <span className="text-muted-fg">
                                 Sin ubicación
                               </span>
+                            )}
+                          </td>
+                          <td className={TD}>
+                            {row.referenciaId ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSurveyId(row.referenciaId)}
+                                aria-label={`Ver la encuesta de la cuenta ${row.cuenta}`}
+                              >
+                                <FileText aria-hidden="true" />
+                                Ver encuesta
+                              </Button>
+                            ) : (
+                              <span className="text-muted-fg">—</span>
                             )}
                           </td>
                         </tr>
@@ -631,6 +651,11 @@ export function BarridoPanel({
                 emptyTitle="Ninguna encuesta tiene ubicación"
                 emptyDetail="Los puntos aparecen cuando un celular envía una encuesta con coordenadas."
                 ariaLabel="Mapa de encuestas del barrido"
+                ugestionId={filters.ugestionId}
+                sucursalId={filters.sucursalId}
+                desde={filters.desde}
+                hasta={filters.hasta}
+                onOpenSurvey={setSurveyId}
               />
             </div>
             {!selected ? (
@@ -642,6 +667,12 @@ export function BarridoPanel({
           </Card>
         </>
       )}
+      <SurveyPanel
+        surveyId={surveyId}
+        open={surveyId !== null}
+        onClose={() => setSurveyId(null)}
+        onSessionExpired={onSessionExpired}
+      />
     </div>
   );
 }

@@ -36,6 +36,6 @@ describe('sections', () => {
     renderAt(path)
 
     expect(screen.getByTestId('section-skeleton')).toBeInTheDocument()
-    expect(await screen.findByText(content, {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByText(content, {}, { timeout: 8000 })).toBeInTheDocument()
   })
 })

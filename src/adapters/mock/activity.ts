@@ -32,6 +32,8 @@ export interface MockAssignment extends BarridoAsignacion {
 }
 
 export interface MockSurvey {
+  /** ENCUESTA_BARRIDOId; even ids have a photo. */
+  id: string
   cuenta: string
   catastro: string
   device: Device
@@ -84,6 +86,7 @@ export function buildMockActivity(dataset: MockDataset, today: Date): MockActivi
   const surveys: MockSurvey[] = []
   const pending = new Map<string, BarridoPendiente[]>()
   let cliBarridoId = 100
+  let surveyId = 203000
 
   usuarios.forEach((usuario, index) => {
     const ruta = routes.get(
@@ -110,7 +113,9 @@ export function buildMockActivity(dataset: MockDataset, today: Date): MockActivi
 
     surveyed.forEach((account) => {
       const device = pick(random, DEVICES)
+      surveyId += 1
       surveys.push({
+        id: String(surveyId),
         cuenta: account.cuenta,
         catastro: `${ruta.filial}-${ruta.zona}-${account.cuenta}`,
         device,

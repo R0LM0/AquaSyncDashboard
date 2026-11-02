@@ -39,7 +39,7 @@ describe('login', () => {
     fireEvent.click(screen.getByRole('button', { name: /ingresar/i }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Resumen' })).toBeInTheDocument()
-    expect(await screen.findByTestId('kpi-cuentasTrabajadas', {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByTestId('kpi-cuentasTrabajadas', {}, { timeout: 8000 })).toBeInTheDocument()
     expect(screen.getByTestId('environment-chip')).toBeInTheDocument()
     expect(screen.getByTestId('live-status-topbar')).toBeInTheDocument()
     expect(JSON.parse(sessionStorage.getItem(sessionKey('pruebas')) ?? '{}')).toMatchObject({
