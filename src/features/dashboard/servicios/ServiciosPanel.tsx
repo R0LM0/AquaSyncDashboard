@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { MapPin, Search } from 'lucide-react'
+import { CalendarCheck, CheckCircle2, ClipboardList, Clock, MapPin, Search, Wrench, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,12 +11,22 @@ import { downloadBlob } from '../report/download'
 import { EmptyState } from '../EmptyState'
 import { ActivityMap, type ActivityFocus, type ActivityMapPoint } from '../barrido/ActivityMap'
 import { buildPopup } from '../barrido/activityPopup'
-import { DayChart, DeviceTable, ExportButtons, Kpi, TD, THEAD, THEAD_ROW, Th } from '../barrido/ActivityParts'
+import { DayChart, DeviceTable, ExportButtons, Kpi, KPI_ACCENTS, TD, THEAD, THEAD_ROW, Th } from '../barrido/ActivityParts'
 import { activityFileName, aliasColor, collectAliases, filterRegistros, hasLocation } from '../barrido/activity'
 import { Pager, paginate, usePager } from '../barrido/pagination'
 import { useActivityRefresh, useActivityResource } from '../barrido/useActivityResource'
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+/** Colour and icon of a status card, from the status name; unknown statuses get a neutral tone. */
+function estadoTone(estado: string): { color: string; icon: LucideIcon } {
+  const name = estado.toLowerCase()
+  if (/(pend|nuevo|sin )/.test(name)) return { color: KPI_ACCENTS.warning, icon: Clock }
+  if (/(proces|curso|asign|revis)/.test(name)) return { color: KPI_ACCENTS.info, icon: Wrench }
+  if (/(complet|finaliz|resuel|cerrad|aprob|ok)/.test(name)) return { color: KPI_ACCENTS.success, icon: CheckCircle2 }
+  if (/(rechaz|cancel|anul)/.test(name)) return { color: KPI_ACCENTS.danger, icon: ClipboardList }
+  return { color: KPI_ACCENTS.violet, icon: ClipboardList }
+}
 
 export interface ServiciosPanelProps {
   api: DashboardApi
@@ -136,12 +146,34 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
           </p>
         ) : null}
 
-        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi label="Registrados" value={formatNumber(data.resumen.registrados)} />
-          <Kpi label="Hoy" value={formatNumber(data.resumen.hoy)} />
-          {data.resumen.porEstado.map((row) => (
-            <Kpi key={row.estado} label={row.estado || 'Sin estado'} value={formatNumber(row.cantidad)} />
-          ))}
+        <dl className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
+          <Kpi
+            label="Registrados"
+            value={formatNumber(data.resumen.registrados)}
+            icon={ClipboardList}
+            color={KPI_ACCENTS.primary}
+            hint="en el período"
+          />
+          <Kpi
+            label="Hoy"
+            value={formatNumber(data.resumen.hoy)}
+            icon={CalendarCheck}
+            color={KPI_ACCENTS.success}
+            hint="registrados hoy"
+          />
+          {data.resumen.porEstado.map((row) => {
+            const tone = estadoTone(row.estado)
+            return (
+              <Kpi
+                key={row.estado}
+                label={row.estado || 'Sin estado'}
+                value={formatNumber(row.cantidad)}
+                icon={tone.icon}
+                color={tone.color}
+                hint="servicios en este estado"
+              />
+            )
+          })}
         </dl>
 
         <div>

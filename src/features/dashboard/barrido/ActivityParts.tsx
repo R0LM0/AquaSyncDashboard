@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react'
-import { FileSpreadsheet, FileText } from 'lucide-react'
+import { FileSpreadsheet, FileText, type LucideIcon } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
 import type { ActividadDispositivo, ActividadPorDia } from '@/domain/types'
@@ -9,13 +9,59 @@ import { useReducedMotion } from '../useReducedMotion'
 import { AXIS_PROPS, GRID_PROPS, chartAnimation } from '../charts/chartTheme'
 import { aliasColor, stackByDay, type DayRow } from './activity'
 
-export function Kpi({ label, value, color }: { label: string; value: string; color?: string }) {
+/** Accent colours (theme tokens) a KPI card can use. */
+export const KPI_ACCENTS = {
+  primary: 'hsl(var(--primary))',
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  danger: 'hsl(var(--danger))',
+  info: '#2f8fd8',
+  violet: '#8b6cf0',
+} as const
+
+/** KPI tile: accent icon chip, big tabular number, helper line and a soft accent glow. */
+export function Kpi({
+  label,
+  value,
+  color,
+  icon: Icon,
+  hint,
+}: {
+  label: string
+  value: string
+  color?: string
+  icon?: LucideIcon
+  hint?: string
+}) {
+  const accent = color ?? KPI_ACCENTS.primary
   return (
-    <div className="rounded-xl border border-border-subtle bg-surface-2/50 p-3">
-      <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">{label}</dt>
-      <dd className="mt-1 text-2xl font-extrabold tabular-nums text-fg" style={color ? { color } : undefined}>
-        {value}
-      </dd>
+    <div
+      className="group relative overflow-hidden rounded-xl border bg-surface-2/50 p-3.5 transition-shadow hover:shadow-panel"
+      style={{ borderColor: `color-mix(in srgb, ${accent} 35%, transparent)` }}
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-8 -top-10 size-24 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-40"
+        style={{ background: accent }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-0.5"
+        style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
+      />
+      <div className="relative flex items-start justify-between gap-2">
+        <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-fg">{label}</dt>
+        {Icon ? (
+          <span
+            className="grid size-8 shrink-0 place-items-center rounded-lg"
+            style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)`, color: accent }}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+        ) : null}
+      </div>
+      <dd className="relative mt-1.5 text-3xl font-extrabold leading-none tabular-nums text-fg">{value}</dd>
+      {hint ? <p className="relative mt-1.5 text-xs text-muted-fg">{hint}</p> : null}
     </div>
   )
 }
