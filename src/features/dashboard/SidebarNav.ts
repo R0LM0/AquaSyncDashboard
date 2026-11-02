@@ -28,13 +28,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'mapa', to: '/mapa', label: 'Mapa', icon: MapPinned },
   { id: 'rutas', to: '/avance-por-ruta', label: 'Avance por ruta', icon: Route },
   { id: 'usuarios', to: '/usuarios', label: 'Usuarios', icon: Users },
+  { id: 'barrido', to: '/barrido', label: 'Barrido', icon: ClipboardList },
+  { id: 'servicios-nuevos', to: '/servicios-nuevos', label: 'Servicios nuevos', icon: Wrench },
   { id: 'reportes', to: '/detalle-y-reportes', label: 'Detalle y reportes', icon: FileSpreadsheet },
 ]
 
 /** Announced but not built: rendered disabled, never navigable. */
 export const UPCOMING_ITEMS: readonly UpcomingItem[] = [
-  { id: 'encuestas', label: 'Encuestas', icon: ClipboardList },
-  { id: 'servicios-nuevos', label: 'Servicios nuevos', icon: Wrench },
   { id: 'metas', label: 'Metas', icon: Target },
 ]
 

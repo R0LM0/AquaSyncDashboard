@@ -1,6 +1,11 @@
 import type { CascadeLevel, CascadeParents } from '../domain/cascade'
 import type {
   AccountDetail,
+  ActividadEvento,
+  BarridoActividad,
+  BarridoAsignacion,
+  BarridoPendiente,
+  ServiciosNuevos,
   CatalogOption,
   Catalogs,
   ChangeRow,
@@ -42,6 +47,20 @@ export interface DashboardApi {
   routeCoverage(filters: Filters, signal?: AbortSignal): Promise<RouteCoverage>
   /** Every route of the unit (ugestión or sucursal is required), worst avance first. */
   routeRanking(filters: Filters, signal?: AbortSignal): Promise<RouteRankingRow[]>
+  /** Barrido assignments (user + route + period) with their survey progress. */
+  barridoAsignaciones(filters: Filters, signal?: AbortSignal): Promise<BarridoAsignacion[]>
+  /** Barrido activity of the filters, optionally narrowed to one assignment (cliBarridoId + periodo id). */
+  barridoActividad(
+    filters: Filters,
+    assignment: { cliBarridoId?: string; periodo?: string },
+    signal?: AbortSignal,
+  ): Promise<BarridoActividad>
+  /** Accounts of one assignment still without survey. */
+  barridoPendientes(
+    assignment: { usrId: string; cliBarridoId: string; periodo: string },
+    signal?: AbortSignal,
+  ): Promise<BarridoPendiente[]>
+  serviciosNuevos(filters: Filters, signal?: AbortSignal): Promise<ServiciosNuevos>
   mapPoints(filters: Filters): Promise<MapPoint[]>
   changes(filters: Filters, page: number, pageSize: number): Promise<Page<ChangeRow>>
   /** Every row matching the filters; the HTTP adapter walks the API pages. */
@@ -62,4 +81,9 @@ export interface DashboardApi {
     onChange: (change: LiveChange) => void,
     onStatus?: (status: LiveStatus) => void,
   ): () => void
+  /**
+   * Live notice that a phone registered activity (SignalR ActividadRegistrada). The pages
+   * of Barrido and Servicios nuevos refetch on it. Returns the unsubscribe function.
+   */
+  subscribeActivity(onActivity: (event: ActividadEvento) => void): () => void
 }

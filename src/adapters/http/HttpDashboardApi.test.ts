@@ -654,3 +654,47 @@ describe('HttpDashboardApi ranking de rutas', () => {
     )
   })
 })
+
+describe('barrido and servicios nuevos endpoints', () => {
+  const range: Filters = { desde: '2026-10-01', hasta: '2026-10-27', ugestionId: '5' }
+
+  it('barridoAsignaciones calls barrido/asignaciones with the filters', async () => {
+    const mock = stubFetch({ Status: 200, Title: 'Success', Data: [] })
+    const api = new HttpDashboardApi(API, 'token-x')
+    expect(await api.barridoAsignaciones(range)).toEqual([])
+    expect(lastCall(mock).url).toBe(`${API}api/dashboard/barrido/asignaciones?ugestionId=5&desde=2026-10-01&hasta=2026-10-27`)
+    expect(lastCall(mock).headers.get('Authorization')).toBe('Bearer token-x')
+  })
+
+  it('barridoActividad adds cliBarridoId and periodo only when given', async () => {
+    const mock = stubFetch({ Status: 200, Title: 'Success', Data: {} })
+    const api = new HttpDashboardApi(API, 'token-x')
+    await api.barridoActividad(range, {})
+    expect(lastCall(mock).url).toBe(`${API}api/dashboard/barrido/actividad?ugestionId=5&desde=2026-10-01&hasta=2026-10-27`)
+    await api.barridoActividad(range, { cliBarridoId: '12', periodo: '202610' })
+    expect(lastCall(mock).url).toBe(
+      `${API}api/dashboard/barrido/actividad?ugestionId=5&desde=2026-10-01&hasta=2026-10-27&cliBarridoId=12&periodo=202610`,
+    )
+  })
+
+  it('barridoPendientes sends the three required params', async () => {
+    const mock = stubFetch({ Status: 200, Title: 'Success', Data: null })
+    const api = new HttpDashboardApi(API, 'token-x')
+    expect(await api.barridoPendientes({ usrId: '7', cliBarridoId: '12', periodo: '202610' })).toEqual([])
+    expect(lastCall(mock).url).toBe(`${API}api/dashboard/barrido/pendientes?usrId=7&cliBarridoId=12&periodo=202610`)
+  })
+
+  it('serviciosNuevos calls servicios-nuevos with the filters', async () => {
+    const mock = stubFetch({ Status: 200, Title: 'Success', Data: {} })
+    const api = new HttpDashboardApi(API, 'token-x')
+    const data = await api.serviciosNuevos(range)
+    expect(lastCall(mock).url).toBe(`${API}api/dashboard/servicios-nuevos?ugestionId=5&desde=2026-10-01&hasta=2026-10-27`)
+    expect(data.registros).toEqual([])
+  })
+
+  it('surfaces the 400 Message of pendientes', async () => {
+    stubFetch({ Status: 400, Title: 'Bad Request', Message: 'Falta la asignacion' }, 400)
+    const api = new HttpDashboardApi(API, 'token-x')
+    await expect(api.barridoPendientes({ usrId: '', cliBarridoId: '', periodo: '' })).rejects.toThrow('Falta la asignacion')
+  })
+})

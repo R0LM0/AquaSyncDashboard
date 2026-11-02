@@ -2,7 +2,14 @@ import type { CascadeLevel } from '../../domain/cascade'
 import { ApiError } from '../../domain/errors'
 import type {
   AccountDetail,
+  ActividadDispositivo,
+  ActividadEvento,
+  ActividadPorDia,
   Alcance,
+  BarridoActividad,
+  BarridoAsignacion,
+  BarridoPendiente,
+  ServiciosNuevos,
   CatalogOption,
   CoverageEstado,
   Catalogs,
@@ -535,5 +542,220 @@ export function mapAccountDetail(dto: AccountDetailDto): AccountDetail {
       origen: entry.Origen ?? '',
       adjuntoId: entry.AdjuntoId == null ? undefined : String(entry.AdjuntoId),
     })),
+  }
+}
+
+// --- Barrido and Servicios nuevos activity (telemetry from aquasync_actividad) ---
+
+export interface BarridoAsignacionDto {
+  UsrId: number | string
+  Usuario?: string | null
+  CliBarridoId: number | string
+  Filial?: string | null
+  Zona?: string | null
+  Ruta?: string | null
+  PeriodoId: number | string
+  Periodo?: string | null
+  Asignadas: number
+  Encuestadas: number
+  Pendientes: number
+  Avance: number
+}
+
+export interface ActividadPorDiaDto {
+  Fecha: string
+  Dispositivo?: string | null
+  Cantidad: number
+}
+
+export interface ActividadDispositivoDto {
+  Usuario?: string | null
+  DispositivoId?: string | null
+  Alias?: string | null
+  Modelo?: string | null
+  AppVersion?: string | null
+  Encuestas?: number
+  Registros?: number
+  Primera?: string | null
+  Ultima?: string | null
+  Lat?: number | null
+  Lng?: number | null
+}
+
+export interface BarridoPuntoDto {
+  Cuenta: number | string
+  Catastro?: string | null
+  Alias?: string | null
+  Fecha: string
+  Lat?: number | null
+  Lng?: number | null
+}
+
+export interface BarridoActividadDto {
+  Resumen?: { Encuestas?: number; Hoy?: number; Dispositivos?: number } | null
+  PorDia?: ActividadPorDiaDto[] | null
+  Dispositivos?: ActividadDispositivoDto[] | null
+  Puntos?: BarridoPuntoDto[] | null
+}
+
+export interface BarridoPendienteDto {
+  ClienteBarridoId: number | string
+  CuentaNro: number | string
+  Catastro?: string | null
+  Cliente?: string | null
+  Direccion?: string | null
+  Lat?: number | null
+  Lng?: number | null
+}
+
+export interface ServicioNuevoRegistroDto {
+  Id: number | string
+  Fecha: string
+  Usuario?: string | null
+  Alias?: string | null
+  Modelo?: string | null
+  Estado?: string | null
+  Sucursal?: string | null
+  Cliente?: string | null
+  Lat?: number | null
+  Lng?: number | null
+}
+
+export interface ServiciosNuevosDto {
+  Resumen?: {
+    Registrados?: number
+    Hoy?: number
+    PorEstado?: Array<{ Estado?: string | null; Cantidad: number }> | null
+  } | null
+  PorDia?: ActividadPorDiaDto[] | null
+  Dispositivos?: ActividadDispositivoDto[] | null
+  Registros?: ServicioNuevoRegistroDto[] | null
+}
+
+export interface ActividadEventoDto {
+  Modulo?: string | null
+  Usuario?: string | null
+  IdUgestion?: number | string | null
+  IdSucursal?: number | string | null
+  // SignalR serializes hub payloads in camelCase.
+  modulo?: string | null
+  usuario?: string | null
+  idUgestion?: number | string | null
+  idSucursal?: number | string | null
+}
+
+/** The wire day may carry a time; the dashboard groups by the calendar day. */
+function dayKey(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : value
+}
+
+function mapPorDia(dto: ActividadPorDiaDto[] | null | undefined): ActividadPorDia[] {
+  return (dto ?? []).map((row) => ({
+    fecha: dayKey(row.Fecha),
+    dispositivo: row.Dispositivo ?? '',
+    cantidad: row.Cantidad,
+  }))
+}
+
+function mapDispositivos(dto: ActividadDispositivoDto[] | null | undefined): ActividadDispositivo[] {
+  return (dto ?? []).map((row) => ({
+    usuario: row.Usuario ?? '',
+    dispositivoId: row.DispositivoId ?? '',
+    alias: row.Alias ?? '',
+    modelo: row.Modelo ?? '',
+    appVersion: row.AppVersion ?? '',
+    cantidad: row.Encuestas ?? row.Registros ?? 0,
+    primera: row.Primera ?? null,
+    ultima: row.Ultima ?? null,
+    lat: row.Lat ?? null,
+    lng: row.Lng ?? null,
+  }))
+}
+
+export function mapBarridoAsignaciones(dto: BarridoAsignacionDto[] | null | undefined): BarridoAsignacion[] {
+  return (dto ?? []).map((row) => ({
+    usrId: String(row.UsrId),
+    usuario: row.Usuario ?? '',
+    cliBarridoId: String(row.CliBarridoId),
+    filial: row.Filial ?? '',
+    zona: row.Zona ?? '',
+    ruta: row.Ruta ?? '',
+    periodoId: String(row.PeriodoId),
+    periodo: row.Periodo ?? '',
+    asignadas: row.Asignadas,
+    encuestadas: row.Encuestadas,
+    pendientes: row.Pendientes,
+    avance: row.Avance,
+  }))
+}
+
+export function mapBarridoActividad(dto: BarridoActividadDto | null | undefined): BarridoActividad {
+  return {
+    resumen: {
+      encuestas: dto?.Resumen?.Encuestas ?? 0,
+      hoy: dto?.Resumen?.Hoy ?? 0,
+      dispositivos: dto?.Resumen?.Dispositivos ?? 0,
+    },
+    porDia: mapPorDia(dto?.PorDia),
+    dispositivos: mapDispositivos(dto?.Dispositivos),
+    puntos: (dto?.Puntos ?? []).map((row) => ({
+      cuenta: String(row.Cuenta),
+      catastro: row.Catastro ?? '',
+      alias: row.Alias ?? '',
+      fecha: row.Fecha,
+      lat: row.Lat ?? null,
+      lng: row.Lng ?? null,
+    })),
+  }
+}
+
+export function mapBarridoPendientes(dto: BarridoPendienteDto[] | null | undefined): BarridoPendiente[] {
+  return (dto ?? []).map((row) => ({
+    clienteBarridoId: String(row.ClienteBarridoId),
+    cuentaNro: String(row.CuentaNro),
+    catastro: row.Catastro ?? '',
+    cliente: row.Cliente ?? '',
+    direccion: row.Direccion ?? '',
+    lat: row.Lat ?? null,
+    lng: row.Lng ?? null,
+  }))
+}
+
+export function mapServiciosNuevos(dto: ServiciosNuevosDto | null | undefined): ServiciosNuevos {
+  return {
+    resumen: {
+      registrados: dto?.Resumen?.Registrados ?? 0,
+      hoy: dto?.Resumen?.Hoy ?? 0,
+      porEstado: (dto?.Resumen?.PorEstado ?? []).map((row) => ({
+        estado: row.Estado ?? '',
+        cantidad: row.Cantidad,
+      })),
+    },
+    porDia: mapPorDia(dto?.PorDia),
+    dispositivos: mapDispositivos(dto?.Dispositivos),
+    registros: (dto?.Registros ?? []).map((row) => ({
+      id: String(row.Id),
+      fecha: row.Fecha,
+      usuario: row.Usuario ?? '',
+      alias: row.Alias ?? '',
+      modelo: row.Modelo ?? '',
+      estado: row.Estado ?? '',
+      sucursal: row.Sucursal ?? '',
+      cliente: row.Cliente ?? '',
+      lat: row.Lat ?? null,
+      lng: row.Lng ?? null,
+    })),
+  }
+}
+
+const idOrNull = (value: number | string | null | undefined): string | null =>
+  value == null ? null : String(value)
+
+export function mapActividadEvento(dto: ActividadEventoDto): ActividadEvento {
+  return {
+    modulo: dto.Modulo ?? dto.modulo ?? '',
+    usuario: dto.Usuario ?? dto.usuario ?? '',
+    ugestionId: idOrNull(dto.IdUgestion ?? dto.idUgestion),
+    sucursalId: idOrNull(dto.IdSucursal ?? dto.idSucursal),
   }
 }

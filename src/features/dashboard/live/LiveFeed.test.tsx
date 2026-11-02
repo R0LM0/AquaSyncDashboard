@@ -99,6 +99,8 @@ function HookHarness({ api, onRefresh }: { api: DashboardApi; onRefresh: () => v
 describe('useLiveChanges', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // Live changes use the current time: pin it inside the filter range.
+    vi.setSystemTime(new Date('2026-10-15T12:00:00'))
     // Counters render statically, so the assertions do not race the animation.
     vi.stubGlobal(
       'matchMedia',

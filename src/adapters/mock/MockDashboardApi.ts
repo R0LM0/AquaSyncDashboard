@@ -6,6 +6,11 @@ import type {
   AccountDetail,
   AccountHistoryEntry,
   AccountMeta,
+  ActividadEvento,
+  BarridoActividad,
+  BarridoAsignacion,
+  BarridoPendiente,
+  ServiciosNuevos,
   AccountPhoto,
   CatalogOption,
   ChangeRow,
@@ -33,6 +38,15 @@ import {
   type MockDataset,
   type MockEvent,
 } from './data'
+import {
+  assignmentKey,
+  buildMockActivity,
+  countToday,
+  deviceSummary,
+  inActivityScope,
+  perDay,
+  type MockActivity,
+} from './activity'
 import { createRandom, randomInt } from './random'
 import {
   bboxOfPoints,
@@ -78,6 +92,9 @@ export class MockDashboardApi implements DashboardApi {
   private readonly meta = new Map<string, AccountMeta>()
   private readonly liveRandom = createRandom(Date.now() % 100_000)
   private listeners = new Set<Parameters<DashboardApi['subscribeChanges']>[0]>()
+  private readonly activityListeners = new Set<(event: ActividadEvento) => void>()
+  private readonly activity: MockActivity
+  private readonly today: Date
   private timer: ReturnType<typeof setTimeout> | undefined
   private readonly predioLimit: number
   private readonly ugestionLayers = new Map<string, MapLayer<UgestionLayerProperties>>()
@@ -89,6 +106,8 @@ export class MockDashboardApi implements DashboardApi {
   constructor(options: MockDashboardApiOptions = {}) {
     this.dataset = buildMockDataset(options.today ?? new Date())
     this.predioLimit = options.predioLimit ?? 3000
+    this.today = options.today ?? new Date()
+    this.activity = buildMockActivity(this.dataset, this.today)
 
     const rutas = new Map(
       this.dataset.catalogs.rutas.map((ruta) => [ruta.nombre, ruta]),
@@ -598,6 +617,121 @@ export class MockDashboardApi implements DashboardApi {
     return this.matchingEvents(enforceScope(input, this.scope))
       .map((event) => this.toRow(event))
       .sort((a, b) => b.fecha.localeCompare(a.fecha))
+  }
+
+  async barridoAsignaciones(input: Filters): Promise<BarridoAsignacion[]> {
+    const filters = enforceScope(input, this.scope)
+
+    return this.activity.assignments
+      .filter(
+        (row) =>
+          inActivityScope(row, filters, false) &&
+          (!filters.filial || row.filial === filters.filial) &&
+          (!filters.zona || row.zona === filters.zona) &&
+          (!filters.ruta || row.ruta === filters.ruta) &&
+          (!filters.usuario || row.usuario === filters.usuario),
+      )
+      .map(({ ugestionId: _ugestion, sucursalId: _sucursal, ...row }) => row)
+      .sort((a, b) => a.avance - b.avance || a.ruta.localeCompare(b.ruta))
+  }
+
+  async barridoActividad(
+    input: Filters,
+    assignment: { cliBarridoId?: string; periodo?: string },
+  ): Promise<BarridoActividad> {
+    const filters = enforceScope(input, this.scope)
+    const keys = new Set(
+      this.activity.assignments
+        .filter(
+          (row) =>
+            (!assignment.cliBarridoId || row.cliBarridoId === assignment.cliBarridoId) &&
+            (!assignment.periodo || row.periodoId === assignment.periodo),
+        )
+        .map((row) => assignmentKey(row)),
+    )
+    const surveys = this.activity.surveys.filter(
+      (survey) => keys.has(survey.assignmentKey) && inActivityScope(survey, filters, true),
+    )
+    const devices = deviceSummary(surveys)
+
+    return {
+      resumen: { encuestas: surveys.length, hoy: countToday(surveys, this.today), dispositivos: devices.length },
+      porDia: perDay(surveys),
+      dispositivos: devices,
+      puntos: surveys.slice(0, 5000).map((survey) => ({
+        cuenta: survey.cuenta,
+        catastro: survey.catastro,
+        alias: survey.device.alias,
+        fecha: survey.fecha,
+        lat: survey.lat,
+        lng: survey.lng,
+      })),
+    }
+  }
+
+  async barridoPendientes(assignment: {
+    usrId: string
+    cliBarridoId: string
+    periodo: string
+  }): Promise<BarridoPendiente[]> {
+    if (!assignment.usrId || !assignment.cliBarridoId || !assignment.periodo) {
+      throw new ApiError('Indicá usuario, asignación y período', 400, 'Bad Request')
+    }
+
+    const row = this.activity.assignments.find(
+      (candidate) =>
+        candidate.usrId === assignment.usrId &&
+        candidate.cliBarridoId === assignment.cliBarridoId &&
+        candidate.periodoId === assignment.periodo,
+    )
+    // Outside the scope of the user the server answers empty, never the accounts.
+    if (!row || !inActivityScope(row, enforceScope({ desde: '', hasta: '' }, this.scope), false)) return []
+
+    return this.activity.pending.get(assignmentKey(row)) ?? []
+  }
+
+  async serviciosNuevos(input: Filters): Promise<ServiciosNuevos> {
+    const filters = enforceScope(input, this.scope)
+    const inScope = this.activity.servicios.filter((servicio) => inActivityScope(servicio, filters, false))
+    const records = inScope.filter((servicio) => inActivityScope(servicio, filters, true))
+    const byEstado = new Map<string, number>()
+    for (const servicio of inScope) byEstado.set(servicio.estado, (byEstado.get(servicio.estado) ?? 0) + 1)
+
+    return {
+      resumen: {
+        registrados: records.length,
+        hoy: countToday(records, this.today),
+        porEstado: [...byEstado].map(([estado, cantidad]) => ({ estado, cantidad })),
+      },
+      porDia: perDay(records),
+      dispositivos: deviceSummary(records),
+      registros: records
+        .map((servicio) => ({
+          id: servicio.id,
+          fecha: servicio.fecha,
+          usuario: servicio.device.usuario,
+          alias: servicio.device.alias,
+          modelo: servicio.device.modelo,
+          estado: servicio.estado,
+          sucursal: servicio.sucursal,
+          cliente: servicio.cliente,
+          lat: servicio.lat,
+          lng: servicio.lng,
+        }))
+        .sort((a, b) => b.fecha.localeCompare(a.fecha)),
+    }
+  }
+
+  subscribeActivity(onActivity: (event: ActividadEvento) => void): () => void {
+    this.activityListeners.add(onActivity)
+    return () => {
+      this.activityListeners.delete(onActivity)
+    }
+  }
+
+  /** Test hook: simulates the SignalR notice of a phone that just registered activity. */
+  emitActivity(event: ActividadEvento): void {
+    for (const listener of this.activityListeners) listener(event)
   }
 
   subscribeChanges(

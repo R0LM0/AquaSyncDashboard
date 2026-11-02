@@ -10,7 +10,12 @@ import type { CascadeLevel, CascadeParents } from '../../domain/cascade'
 import { ApiError, ForbiddenError, NotFoundError, SessionExpiredError } from '../../domain/errors'
 import type {
   AccountDetail,
+  ActividadEvento,
   BBox,
+  BarridoActividad,
+  BarridoAsignacion,
+  BarridoPendiente,
+  ServiciosNuevos,
   CatalogOption,
   Catalogs,
   ChangeRow,
@@ -33,6 +38,11 @@ import type {
 import type { DashboardApi, LiveStatus } from '../../ports/DashboardApi'
 import {
   mapAccountDetail,
+  mapActividadEvento,
+  mapBarridoActividad,
+  mapBarridoAsignaciones,
+  mapBarridoPendientes,
+  mapServiciosNuevos,
   mapCascadeOptions,
   mapCatalogs,
   mapChangesPage,
@@ -46,6 +56,11 @@ import {
   mapSummary,
   mapUserRouteProgress,
   type AccountDetailDto,
+  type ActividadEventoDto,
+  type BarridoActividadDto,
+  type BarridoAsignacionDto,
+  type BarridoPendienteDto,
+  type ServiciosNuevosDto,
   type CascadeOptionDto,
   type CatalogsDto,
   type CoberturaRutaDto,
@@ -96,6 +111,7 @@ export class HttpDashboardApi implements DashboardApi {
   private connection: HubConnection | undefined
   private readonly baseUrl: string
   private readonly layerCache = new Map<string, MapLayer<unknown>>()
+  private readonly activityListeners = new Set<(event: ActividadEvento) => void>()
 
   constructor(baseUrl: string, token = '') {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
@@ -175,6 +191,64 @@ export class HttpDashboardApi implements DashboardApi {
     )
 
     return mapRouteRanking(data ?? [])
+  }
+
+  async barridoAsignaciones(filters: Filters, signal?: AbortSignal): Promise<BarridoAsignacion[]> {
+    const { data } = await this.requestEnvelope<BarridoAsignacionDto[] | null>(
+      `api/dashboard/barrido/asignaciones${toQueryParams(filters)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapBarridoAsignaciones(data)
+  }
+
+  async barridoActividad(
+    filters: Filters,
+    assignment: { cliBarridoId?: string; periodo?: string },
+    signal?: AbortSignal,
+  ): Promise<BarridoActividad> {
+    const params = new URLSearchParams(toQueryParams(filters))
+    if (assignment.cliBarridoId) params.set('cliBarridoId', assignment.cliBarridoId)
+    if (assignment.periodo) params.set('periodo', assignment.periodo)
+    const query = params.toString()
+
+    const { data } = await this.requestEnvelope<BarridoActividadDto | null>(
+      `api/dashboard/barrido/actividad${query ? `?${query}` : ''}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapBarridoActividad(data)
+  }
+
+  async barridoPendientes(
+    assignment: { usrId: string; cliBarridoId: string; periodo: string },
+    signal?: AbortSignal,
+  ): Promise<BarridoPendiente[]> {
+    const params = new URLSearchParams({
+      usrId: assignment.usrId,
+      cliBarridoId: assignment.cliBarridoId,
+      periodo: assignment.periodo,
+    })
+
+    const { data } = await this.requestEnvelope<BarridoPendienteDto[] | null>(
+      `api/dashboard/barrido/pendientes?${params.toString()}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapBarridoPendientes(data)
+  }
+
+  async serviciosNuevos(filters: Filters, signal?: AbortSignal): Promise<ServiciosNuevos> {
+    const { data } = await this.requestEnvelope<ServiciosNuevosDto | null>(
+      `api/dashboard/servicios-nuevos${toQueryParams(filters)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapServiciosNuevos(data)
   }
 
   async mapPoints(filters: Filters): Promise<MapPoint[]> {
@@ -295,6 +369,10 @@ export class HttpDashboardApi implements DashboardApi {
       this.connection.on('CambioRegistrado', (payload: LiveChangeDto) =>
         onChange(mapLiveChange(payload)),
       )
+      this.connection.on('ActividadRegistrada', (payload: ActividadEventoDto) => {
+        const event = mapActividadEvento(payload)
+        for (const listener of this.activityListeners) listener(event)
+      })
       this.connection.onreconnecting(() => onStatus?.('reconnecting'))
       this.connection.onreconnected(() => onStatus?.('live'))
       this.connection.onclose(() => onStatus?.('offline'))
@@ -313,6 +391,17 @@ export class HttpDashboardApi implements DashboardApi {
     return () => {
       this.connection = undefined
       void connection.stop()
+    }
+  }
+
+  /**
+   * Activity notices ride the same hub connection as the changes (opened by subscribeChanges
+   * in the layout), so subscribing here only registers a listener.
+   */
+  subscribeActivity(onActivity: (event: ActividadEvento) => void): () => void {
+    this.activityListeners.add(onActivity)
+    return () => {
+      this.activityListeners.delete(onActivity)
     }
   }
 
