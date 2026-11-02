@@ -45,10 +45,10 @@ import {
   filterAssignments,
   filterWorkedAccounts,
   hasLocation,
-  limitRows,
   sortWorkedAccounts,
   type WorkedAccount,
 } from "./activity";
+import { Pager, paginate, usePager } from "./pagination";
 import { useActivityRefresh, useActivityResource } from "./useActivityResource";
 
 const XLSX_MIME =
@@ -164,9 +164,21 @@ export function BarridoPanel({
   );
   const table = useMemo(() => filterAssignments(rows, query), [rows, query]);
   const worked = useMemo(() => sortWorkedAccounts(data?.puntos ?? []), [data]);
-  const workedTable = useMemo(
-    () => limitRows(filterWorkedAccounts(worked, workedQuery)),
+  const workedFiltered = useMemo(
+    () => filterWorkedAccounts(worked, workedQuery),
     [worked, workedQuery],
+  );
+  const assignmentsPager = usePager(`${filtersKey}|${query}`);
+  const workedPager = usePager(`${filtersKey}|${selectedKey}|${workedQuery}`);
+  const assignmentsPage = paginate(
+    table,
+    assignmentsPager.page,
+    assignmentsPager.pageSize,
+  );
+  const workedPage = paginate(
+    workedFiltered,
+    workedPager.page,
+    workedPager.pageSize,
   );
 
   const points = useMemo<ActivityMapPoint[]>(() => {
@@ -344,7 +356,7 @@ export function BarridoPanel({
                 </li>
               ))}
             </ul>
-            <div className="max-h-[320px] overflow-auto">
+            <div className="overflow-auto">
               <table className="w-full border-collapse text-sm">
                 <caption className="sr-only">
                   Asignaciones de barrido con su avance
@@ -362,7 +374,7 @@ export function BarridoPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {table.map((row) => {
+                  {assignmentsPage.rows.map((row) => {
                     const light = assignmentLight(row);
                     const isSelected =
                       selected !== null &&
@@ -422,6 +434,14 @@ export function BarridoPanel({
                 <EmptyState title="Ninguna asignación coincide con la búsqueda" />
               ) : null}
             </div>
+            <Pager
+              label="asignaciones"
+              page={assignmentsPage.page}
+              pageSize={assignmentsPage.pageSize}
+              total={assignmentsPage.total}
+              onPage={assignmentsPager.setPage}
+              onPageSize={assignmentsPager.setPageSize}
+            />
           </>
         )}
       </Card>
@@ -519,7 +539,7 @@ export function BarridoPanel({
                     onChange={(event) => setWorkedQuery(event.target.value)}
                   />
                 </div>
-                <div className="max-h-[360px] overflow-auto">
+                <div className="overflow-auto">
                   <table className="w-full border-collapse text-sm">
                     <caption className="sr-only">Cuentas trabajadas</caption>
                     <thead className={THEAD}>
@@ -533,7 +553,7 @@ export function BarridoPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {workedTable.shown.map((row) => (
+                      {workedPage.rows.map((row) => (
                         <tr key={row.index}>
                           <td className={`${TD} font-semibold text-fg`}>
                             {row.cuenta}
@@ -592,19 +612,18 @@ export function BarridoPanel({
                       ))}
                     </tbody>
                   </table>
-                  {workedTable.shown.length === 0 ? (
+                  {workedFiltered.length === 0 ? (
                     <EmptyState title="Ninguna cuenta coincide con la búsqueda" />
                   ) : null}
                 </div>
-                {workedTable.hidden > 0 ? (
-                  <p className="text-xs text-muted-fg">
-                    Mostrando {formatNumber(workedTable.shown.length)} de{" "}
-                    {formatNumber(
-                      workedTable.shown.length + workedTable.hidden,
-                    )}
-                    ; usá el buscador o exportá a Excel
-                  </p>
-                ) : null}
+                <Pager
+                  label="cuentas trabajadas"
+                  page={workedPage.page}
+                  pageSize={workedPage.pageSize}
+                  total={workedPage.total}
+                  onPage={workedPager.setPage}
+                  onPageSize={workedPager.setPageSize}
+                />
               </>
             )}
           </Card>
@@ -644,6 +663,9 @@ export function BarridoPanel({
                           (pending.status === "loading" ||
                             pending.status === "idle"),
                         count: pending.data?.length ?? null,
+                        withoutLocation: pending.data
+                          ? pending.data.filter((account) => !hasLocation(account)).length
+                          : undefined,
                         onToggle: () => setShowPending((current) => !current),
                       }
                     : undefined

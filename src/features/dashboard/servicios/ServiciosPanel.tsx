@@ -12,7 +12,8 @@ import { EmptyState } from '../EmptyState'
 import { ActivityMap, type ActivityFocus, type ActivityMapPoint } from '../barrido/ActivityMap'
 import { buildPopup } from '../barrido/activityPopup'
 import { DayChart, DeviceTable, ExportButtons, Kpi, TD, THEAD, THEAD_ROW, Th } from '../barrido/ActivityParts'
-import { activityFileName, aliasColor, collectAliases, filterRegistros, hasLocation, limitRows } from '../barrido/activity'
+import { activityFileName, aliasColor, collectAliases, filterRegistros, hasLocation } from '../barrido/activity'
+import { Pager, paginate, usePager } from '../barrido/pagination'
 import { useActivityRefresh, useActivityResource } from '../barrido/useActivityResource'
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -44,7 +45,9 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
 
   const data = resource.data
   const order = useMemo(() => collectAliases(data?.dispositivos ?? [], data?.porDia ?? [], data?.registros ?? []), [data])
-  const table = useMemo(() => limitRows(filterRegistros(data?.registros ?? [], query)), [data, query])
+  const filtered = useMemo(() => filterRegistros(data?.registros ?? [], query), [data, query])
+  const pager = usePager(`${filtersKey}|${query}`)
+  const tablePage = paginate(filtered, pager.page, pager.pageSize)
 
   const points = useMemo<ActivityMapPoint[]>(
     () =>
@@ -173,7 +176,7 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
-            <div className="max-h-[360px] overflow-auto">
+            <div className="overflow-auto">
               <table className="w-full border-collapse text-sm">
                 <caption className="sr-only">Servicios nuevos registrados</caption>
                 <thead className={THEAD}>
@@ -189,7 +192,7 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
                   </tr>
                 </thead>
                 <tbody>
-                  {table.shown.map((row) => (
+                  {tablePage.rows.map((row) => (
                     <tr key={row.id}>
                       <td className={`${TD} whitespace-nowrap text-muted-fg`}>{formatDateTime(row.fecha)}</td>
                       <td className={`${TD} font-semibold text-fg`}>{row.usuario}</td>
@@ -217,13 +220,16 @@ export function ServiciosPanel({ api, filters, onSessionExpired }: ServiciosPane
                   ))}
                 </tbody>
               </table>
-              {table.shown.length === 0 ? <EmptyState title="Ningún servicio coincide con la búsqueda" /> : null}
+              {filtered.length === 0 ? <EmptyState title="Ningún servicio coincide con la búsqueda" /> : null}
             </div>
-            {table.hidden > 0 ? (
-              <p className="text-xs text-muted-fg">
-                Se muestran {formatNumber(table.shown.length)} registros más recientes; {formatNumber(table.hidden)} más con la búsqueda o en el Excel.
-              </p>
-            ) : null}
+            <Pager
+              label="servicios"
+              page={tablePage.page}
+              pageSize={tablePage.pageSize}
+              total={tablePage.total}
+              onPage={pager.setPage}
+              onPageSize={pager.setPageSize}
+            />
           </>
         )}
       </Card>

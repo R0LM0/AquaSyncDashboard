@@ -200,3 +200,36 @@ describe('survey detail from the worked accounts', () => {
     expect(await screen.findByText('Características', {}, SLOW)).toBeInTheDocument()
   })
 })
+
+describe('pagination on the activity pages', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  it('pages the worked accounts and goes back to page 1 when searching', async () => {
+    renderAt('/barrido')
+    const nav = await screen.findByRole('navigation', { name: 'Paginación de cuentas trabajadas' }, SLOW)
+    const table = screen.getByRole('table', { name: 'Cuentas trabajadas' })
+    const size = within(nav).getByRole('combobox', { name: 'Filas por página' }) as HTMLSelectElement
+    expect(size.value).toBe('25')
+    expect(within(table).getAllByRole('row').length - 1).toBeLessThanOrEqual(25)
+
+    fireEvent.change(size, { target: { value: '10' } })
+    expect(within(table).getAllByRole('row').length - 1).toBeLessThanOrEqual(10)
+
+    const next = within(nav).getByRole('button', { name: 'Página siguiente' })
+    if (!(next as HTMLButtonElement).disabled) {
+      fireEvent.click(next)
+      expect(within(nav).getByText(/Página 2 de/)).toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText(/Buscar cuenta trabajada/), { target: { value: 'zzz-no-existe' } })
+      expect(screen.getByText('Ninguna cuenta coincide con la búsqueda')).toBeInTheDocument()
+    }
+  })
+
+  it('pages the Servicios nuevos records', async () => {
+    renderAt('/servicios-nuevos')
+    const nav = await screen.findByRole('navigation', { name: 'Paginación de servicios' }, SLOW)
+    expect(within(nav).getByText(/Página 1 de/)).toBeInTheDocument()
+  })
+})

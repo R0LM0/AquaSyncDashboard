@@ -39,6 +39,8 @@ export interface PendingToggle {
   busy: boolean
   /** Pending accounts loaded for the assignment, once known. */
   count: number | null
+  /** Of those, how many have no coordinates and so cannot be drawn. */
+  withoutLocation?: number
   onToggle: () => void
 }
 
@@ -91,7 +93,25 @@ function ActivityMarkers({
     }
 
     markers.current = registry
+
+    // The lots layer is added after the points (and again on every pan) and, drawn later, would sit on top of
+    // them and swallow their clicks, in SVG and in canvas mode alike. Keep the points last in the draw order.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let scheduled = false
+    const raise = () => {
+      scheduled = false
+      for (const marker of registry.values()) marker.bringToFront()
+    }
+    const onLayerAdd = (event: L.LayerEvent) => {
+      if (scheduled || !(event.layer instanceof L.Path) || event.layer instanceof L.CircleMarker) return
+      scheduled = true
+      timer = setTimeout(raise, 0)
+    }
+    map.on('layeradd', onLayerAdd)
+
     return () => {
+      map.off('layeradd', onLayerAdd)
+      clearTimeout(timer)
       group.remove()
       markers.current = new Map()
     }
@@ -154,6 +174,23 @@ function ViewReporter({ onViewChange }: { onViewChange: (view: MapView) => void 
   }, [map, onViewChange])
 
   return null
+}
+
+const layerIds = new WeakMap<object, number>()
+let nextLayerId = 0
+
+/**
+ * A key that changes with every response. react-leaflet's GeoJSON never updates its data, so the layer has to be
+ * remounted per response: the old key (feature count + zoom) repeated itself whenever the API answered its
+ * 3,000-lot cap twice at the same zoom, and the lots of the first view stayed on screen while the user panned.
+ */
+export function layerKey(collection: object): number {
+  let id = layerIds.get(collection)
+  if (id === undefined) {
+    id = ++nextLayerId
+    layerIds.set(collection, id)
+  }
+  return id
 }
 
 const DEFAULT_VIEW: MapView = { bbox: NICARAGUA_BBOX, zoom: 7 }
@@ -261,6 +298,13 @@ export function ActivityMap({
               : 'Mostrar cuentas pendientes'}
         </button>
       ) : null}
+      {pending?.on && pending.withoutLocation ? (
+        <p role="status" className="text-xs font-semibold text-muted-fg" data-testid="pending-no-location">
+          {pending.withoutLocation === 1
+            ? '1 cuenta pendiente sin ubicación'
+            : `${pending.withoutLocation} cuentas pendientes sin ubicación`}
+        </p>
+      ) : null}
 
       {points.length === 0 ? (
         <EmptyState title={emptyTitle} detail={emptyDetail} />
@@ -308,7 +352,7 @@ export function ActivityMap({
 
             {visible.predios && layers.predios ? (
               <GeoJSON
-                key={`predios-${layers.predios.collection.features.length}-${view.zoom}`}
+                key={`predios-${layerKey(layers.predios.collection)}`}
                 data={layers.predios.collection as unknown as GeoJsonObject}
                 style={(feature) =>
                   predioPathStyle(estadoOfProperties(feature?.properties as Partial<PredioLayerProperties> | undefined))
