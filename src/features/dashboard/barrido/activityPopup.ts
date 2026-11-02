@@ -12,17 +12,20 @@ export function buildPopup(
   options: { survey?: boolean } = {},
 ): string {
   const mapsUrl = googleMapsSearchUrl(lat, lng)
+  const survey = options.survey
+    ? '<div class="map-popup-actions"><button type="button" class="map-popup-btn map-popup-btn--danger" data-action="survey">Ver encuesta</button></div>'
+    : ''
   const actions = [
+    '<button type="button" class="map-popup-btn" data-action="locate">Ubicar en el mapa</button>',
     mapsUrl
-      ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>`
+      ? `<a class="map-popup-btn" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a>`
       : '',
-    '<button type="button" data-action="locate">Ubicar en el mapa</button>',
-    options.survey ? '<button type="button" data-action="survey">Ver encuesta</button>' : '',
   ].filter(Boolean)
 
   return [
     `<strong>${escapeHtml(title)}</strong>`,
     ...lines.filter(Boolean).map((line) => escapeHtml(line)),
-    `<div class="coverage-popup-actions">${actions.join(' ')}</div>`,
-  ].join('<br/>')
+  ]
+    .join('<br/>')
+    .concat(survey, `<div class="map-popup-actions">${actions.join('')}</div>`)
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { FileText, MapPin, Search } from "lucide-react";
+import { CalendarCheck, ClipboardList, FileText, MapPin, Search, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +31,7 @@ import {
   DeviceTable,
   ExportButtons,
   Kpi,
+  KPI_ACCENTS,
   TD,
   THEAD,
   THEAD_ROW,
@@ -481,15 +482,27 @@ export function BarridoPanel({
               </p>
             ) : null}
 
-            <dl className="grid grid-cols-3 gap-3">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Kpi
                 label="Encuestas"
                 value={formatNumber(data.resumen.encuestas)}
+                icon={ClipboardList}
+                color={KPI_ACCENTS.primary}
+                hint="en el período"
               />
-              <Kpi label="Hoy" value={formatNumber(data.resumen.hoy)} />
+              <Kpi
+                label="Hoy"
+                value={formatNumber(data.resumen.hoy)}
+                icon={CalendarCheck}
+                color={KPI_ACCENTS.success}
+                hint="registradas hoy"
+              />
               <Kpi
                 label="Dispositivos"
                 value={formatNumber(data.resumen.dispositivos)}
+                icon={Smartphone}
+                color={KPI_ACCENTS.violet}
+                hint="celulares activos"
               />
             </dl>
 

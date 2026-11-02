@@ -185,6 +185,16 @@ describe('map popup', () => {
   })
 })
 
+describe('map popup actions', () => {
+  it('renders "Ver encuesta" as the primary red button and the rest as secondary buttons', () => {
+    const html = buildPopup('Cuenta 1', [], 12.5, -86.25, { survey: true })
+
+    expect(html).toContain('map-popup-btn map-popup-btn--danger" data-action="survey"')
+    expect(html).toContain('class="map-popup-btn" data-action="locate"')
+    expect(html).toContain('class="map-popup-btn" href="https://www.google.com/maps')
+  })
+})
+
 describe('survey detail from the worked accounts', () => {
   it('opens the modal with the survey of the row', async () => {
     URL.createObjectURL = vi.fn(() => 'blob:foto')

@@ -1,6 +1,6 @@
 import L from 'leaflet'
-import { Maximize2, Minimize2, Target } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Target } from 'lucide-react'
+import { useEffect, useMemo, useRef } from 'react'
 import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import type { GeoJsonObject } from 'geojson'
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { BASE_LAYERS, NICARAGUA_BBOX } from './mapLayers'
 import { MapLegend } from './MapLegend'
 import { MapLayersPopover } from './MapLayersPopover'
+import { FullscreenButton } from './FullscreenButton'
 import type { BaseMap } from './mapPreferences'
 import { estadoOfProperties, predioPathStyle } from './predioStyle'
 import {
@@ -245,20 +246,6 @@ function FocusController({
 
 function MapControls({ home, homeLabel }: { home: MapCenter; homeLabel: string }) {
   const map = useMap()
-  const [fullscreen, setFullscreen] = useState(false)
-
-  useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
-
-  const toggleFullscreen = () => {
-    const shell = map.getContainer().closest('.map-shell')
-    if (!shell) return
-    if (document.fullscreenElement) void document.exitFullscreen?.()
-    else void (shell as HTMLElement).requestFullscreen?.()
-  }
 
   return (
     <div className="absolute right-3 top-3 z-[800] flex flex-col gap-1.5">
@@ -271,15 +258,7 @@ function MapControls({ home, homeLabel }: { home: MapCenter; homeLabel: string }
       >
         <Target className="size-4" aria-hidden="true" />
       </button>
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        className="grid size-9 place-items-center rounded-lg border border-border-subtle bg-surface/95 text-fg shadow-panel hover:text-primary"
-        aria-label={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-        title={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-      >
-        {fullscreen ? <Minimize2 className="size-4" aria-hidden="true" /> : <Maximize2 className="size-4" aria-hidden="true" />}
-      </button>
+      <FullscreenButton />
     </div>
   )
 }

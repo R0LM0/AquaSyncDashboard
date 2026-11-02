@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css'
 import { cn } from '@/lib/utils'
 import { BASE_LAYERS, NICARAGUA_BBOX, NICARAGUA_CENTER } from '../map/mapLayers'
 import { EmptyState } from '../EmptyState'
+import { FullscreenButton } from '../map/FullscreenButton'
 import { MapLayersPopover } from '../map/MapLayersPopover'
 import { readMapPreferences, saveMapPreferences, type BaseMap, type MapPreferences } from '../map/mapPreferences'
 import { PREDIO_ESTADOS_ORDER, PREDIO_ESTADO_STYLES, estadoOfProperties, predioPathStyle } from '../map/predioStyle'
@@ -310,7 +311,7 @@ export function ActivityMap({
         <EmptyState title={emptyTitle} detail={emptyDetail} />
       ) : (
         <div
-          className="relative h-[60vh] min-h-[420px] overflow-hidden rounded-xl border border-border-subtle md:h-[70vh] md:min-h-[520px]"
+          className="map-shell relative isolate z-0 h-[60vh] min-h-[420px] overflow-hidden rounded-xl border border-border-subtle md:h-[70vh] md:min-h-[520px]"
           role="group"
           aria-label={ariaLabel}
           data-testid="activity-map"
@@ -325,6 +326,9 @@ export function ActivityMap({
             <TileLayer key={preferences.baseMap} url={tiles.url} attribution={tiles.attribution} />
             <ViewReporter onViewChange={handleViewChange} />
             <FitToPoints points={points} fitKey={fitKey} />
+            <div className="absolute right-3 top-3 z-[800]">
+              <FullscreenButton />
+            </div>
 
             {visible.ugestiones && layers.ugestiones ? (
               <GeoJSON
@@ -371,7 +375,7 @@ export function ActivityMap({
             {visible.cambios ? <ActivityMarkers points={points} focus={focus} onOpenSurvey={onOpenSurvey} /> : null}
           </MapContainer>
 
-          <div className="absolute right-3 top-3 z-[800]">
+          <div className="absolute right-3 top-[56px] z-[800]">
             <MapLayersPopover
               baseMap={preferences.baseMap}
               onBaseMapChange={changeBaseMap}
