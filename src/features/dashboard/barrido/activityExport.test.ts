@@ -17,7 +17,7 @@ const actividad: BarridoActividad = {
   resumen: { encuestas: 4, hoy: 2, dispositivos: 1 },
   porDia: [{ fecha: '2026-11-01', dispositivo: 'Dispositivo A', cantidad: 4 }],
   dispositivos: [device],
-  puntos: [{ cuenta: '1234', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T14:00:00Z', lat: 12.1, lng: -86.2 }],
+  puntos: [{ referenciaId: '77', cuenta: '1234', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T14:00:00Z', lat: 12.1, lng: -86.2 }],
 }
 const servicios: ServiciosNuevos = {
   resumen: { registrados: 1, hoy: 1, porEstado: [{ estado: 'Pendiente', cantidad: 3 }] },

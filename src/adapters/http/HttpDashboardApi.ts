@@ -14,6 +14,7 @@ import type {
   BBox,
   BarridoActividad,
   BarridoAsignacion,
+  BarridoEncuestaDetalle,
   BarridoPendiente,
   ServiciosNuevos,
   CatalogOption,
@@ -41,6 +42,7 @@ import {
   mapActividadEvento,
   mapBarridoActividad,
   mapBarridoAsignaciones,
+  mapBarridoEncuesta,
   mapBarridoPendientes,
   mapServiciosNuevos,
   mapCascadeOptions,
@@ -59,6 +61,7 @@ import {
   type ActividadEventoDto,
   type BarridoActividadDto,
   type BarridoAsignacionDto,
+  type BarridoEncuestaDto,
   type BarridoPendienteDto,
   type ServiciosNuevosDto,
   type CascadeOptionDto,
@@ -239,6 +242,35 @@ export class HttpDashboardApi implements DashboardApi {
     )
 
     return mapBarridoPendientes(data)
+  }
+
+  async barridoEncuesta(id: string, signal?: AbortSignal): Promise<BarridoEncuestaDetalle> {
+    const { data } = await this.requestEnvelope<BarridoEncuestaDto>(
+      `api/dashboard/barrido/encuesta/${encodeURIComponent(id)}`,
+      { method: 'GET', signal },
+      'authorized',
+    )
+
+    return mapBarridoEncuesta(data)
+  }
+
+  /** The image needs the Authorization header, so it is fetched here and shown through an object URL. */
+  async barridoEncuestaFoto(id: string, signal?: AbortSignal): Promise<Blob> {
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}api/dashboard/barrido/encuesta/${encodeURIComponent(id)}/foto`, {
+      method: 'GET',
+      headers,
+      signal,
+    })
+
+    if (!response.ok) {
+      const payload: unknown = await response.json().catch(() => undefined)
+      throw toApiError(response.status, payload, 'authorized')
+    }
+
+    return response.blob()
   }
 
   async serviciosNuevos(filters: Filters, signal?: AbortSignal): Promise<ServiciosNuevos> {

@@ -362,6 +362,8 @@ export interface ActividadDispositivo {
 }
 
 export interface BarridoPunto {
+  /** ENCUESTA_BARRIDOId: opens the survey detail. */
+  referenciaId: string
   cuenta: string
   catastro: string
   alias: string
@@ -414,4 +416,26 @@ export interface ActividadEvento {
   usuario: string
   ugestionId: string | null
   sucursalId: string | null
+}
+
+/** One Barrido survey with the catalogs already translated to text by the API. */
+export interface BarridoEncuestaDetalle {
+  id: string
+  fecha: string
+  cuenta: string
+  catastro: string
+  cliente: string
+  direccion: string
+  estadoAdm: string
+  rubro: string
+  tarifa: string
+  jardin: boolean
+  piscina: boolean
+  tanque: boolean
+  tanqueM: number
+  plantaPiso: boolean
+  observacion: string
+  lat: number | null
+  lng: number | null
+  tieneFoto: boolean
 }

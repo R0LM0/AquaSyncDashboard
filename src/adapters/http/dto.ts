@@ -8,6 +8,7 @@ import type {
   Alcance,
   BarridoActividad,
   BarridoAsignacion,
+  BarridoEncuestaDetalle,
   BarridoPendiente,
   ServiciosNuevos,
   CatalogOption,
@@ -583,6 +584,7 @@ export interface ActividadDispositivoDto {
 }
 
 export interface BarridoPuntoDto {
+  ReferenciaId?: number | string | null
   Cuenta: number | string
   Catastro?: string | null
   Alias?: string | null
@@ -699,6 +701,7 @@ export function mapBarridoActividad(dto: BarridoActividadDto | null | undefined)
     porDia: mapPorDia(dto?.PorDia),
     dispositivos: mapDispositivos(dto?.Dispositivos),
     puntos: (dto?.Puntos ?? []).map((row) => ({
+      referenciaId: row.ReferenciaId === null || row.ReferenciaId === undefined ? "" : String(row.ReferenciaId),
       cuenta: String(row.Cuenta),
       catastro: row.Catastro ?? '',
       alias: row.Alias ?? '',
@@ -757,5 +760,49 @@ export function mapActividadEvento(dto: ActividadEventoDto): ActividadEvento {
     usuario: dto.Usuario ?? dto.usuario ?? '',
     ugestionId: idOrNull(dto.IdUgestion ?? dto.idUgestion),
     sucursalId: idOrNull(dto.IdSucursal ?? dto.idSucursal),
+  }
+}
+
+export interface BarridoEncuestaDto {
+  Id: number | string
+  Fecha: string
+  Cuenta: number | string
+  Catastro?: string | null
+  Cliente?: string | null
+  Direccion?: string | null
+  EstadoAdm?: string | null
+  Rubro?: string | null
+  Tarifa?: string | null
+  Jardin?: boolean
+  Piscina?: boolean
+  Tanque?: boolean
+  TanqueM?: number
+  PlantaPiso?: boolean
+  Observacion?: string | null
+  Lat?: number | null
+  Lng?: number | null
+  TieneFoto?: boolean
+}
+
+export function mapBarridoEncuesta(dto: BarridoEncuestaDto): BarridoEncuestaDetalle {
+  return {
+    id: String(dto.Id),
+    fecha: dto.Fecha,
+    cuenta: String(dto.Cuenta),
+    catastro: dto.Catastro ?? '',
+    cliente: dto.Cliente ?? '',
+    direccion: dto.Direccion ?? '',
+    estadoAdm: dto.EstadoAdm ?? '',
+    rubro: dto.Rubro ?? '',
+    tarifa: dto.Tarifa ?? '',
+    jardin: dto.Jardin === true,
+    piscina: dto.Piscina === true,
+    tanque: dto.Tanque === true,
+    tanqueM: dto.TanqueM ?? 0,
+    plantaPiso: dto.PlantaPiso === true,
+    observacion: dto.Observacion ?? '',
+    lat: dto.Lat ?? null,
+    lng: dto.Lng ?? null,
+    tieneFoto: dto.TieneFoto === true,
   }
 }

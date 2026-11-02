@@ -9,6 +9,7 @@ import type {
   ActividadEvento,
   BarridoActividad,
   BarridoAsignacion,
+  BarridoEncuestaDetalle,
   BarridoPendiente,
   ServiciosNuevos,
   AccountPhoto,
@@ -659,6 +660,7 @@ export class MockDashboardApi implements DashboardApi {
       porDia: perDay(surveys),
       dispositivos: devices,
       puntos: surveys.slice(0, 5000).map((survey) => ({
+        referenciaId: survey.id,
         cuenta: survey.cuenta,
         catastro: survey.catastro,
         alias: survey.device.alias,
@@ -688,6 +690,51 @@ export class MockDashboardApi implements DashboardApi {
     if (!row || !inActivityScope(row, enforceScope({ desde: '', hasta: '' }, this.scope), false)) return []
 
     return this.activity.pending.get(assignmentKey(row)) ?? []
+  }
+
+  private findSurvey(id: string) {
+    const survey = this.activity.surveys.find((candidate) => candidate.id === id)
+    if (!survey) throw new NotFoundError('Encuesta no encontrada')
+    // Like the server: a survey outside the scope of the user is forbidden, not hidden.
+    if (!inActivityScope(survey, enforceScope({ desde: '', hasta: '' }, this.scope), false)) {
+      throw new ForbiddenError('La encuesta está fuera de su alcance')
+    }
+    return survey
+  }
+
+  async barridoEncuesta(id: string): Promise<BarridoEncuestaDetalle> {
+    const survey = this.findSurvey(id)
+    const account = this.dataset.accounts.find((candidate) => candidate.cuenta === survey.cuenta)
+    const number = Number(id)
+
+    return {
+      id: survey.id,
+      fecha: survey.fecha,
+      cuenta: survey.cuenta,
+      catastro: survey.catastro,
+      cliente: account?.cliente ?? '',
+      direccion: `Barrio ${survey.catastro.split('-')[1] ?? ''}, casa ${(number % 90) + 1}`,
+      estadoAdm: number % 5 === 0 ? 'Baja' : 'Alta',
+      rubro: number % 4 === 0 ? 'Comercial' : 'Casa domiciliar',
+      tarifa: number % 4 === 0 ? 'Comercial' : 'Domiciliar',
+      jardin: number % 2 === 0,
+      piscina: number % 7 === 0,
+      tanque: number % 3 === 0,
+      tanqueM: number % 3 === 0 ? 2 : 0,
+      plantaPiso: number % 6 === 0,
+      observacion: number % 4 === 0 ? 'Cliente atendió en la puerta; medidor visible.' : '',
+      lat: survey.lat,
+      lng: survey.lng,
+      tieneFoto: number % 2 === 0,
+    }
+  }
+
+  async barridoEncuestaFoto(id: string): Promise<Blob> {
+    const survey = this.findSurvey(id)
+    if (Number(survey.id) % 2 !== 0) throw new NotFoundError('La encuesta no tiene foto')
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#cbd5e1"/><text x="320" y="250" font-size="28" text-anchor="middle" fill="#334155" font-family="sans-serif">Foto de la cuenta ${survey.cuenta}</text></svg>`
+    return new Blob([svg], { type: 'image/svg+xml' })
   }
 
   async serviciosNuevos(input: Filters): Promise<ServiciosNuevos> {

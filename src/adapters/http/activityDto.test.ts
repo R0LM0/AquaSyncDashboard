@@ -41,7 +41,7 @@ describe('mapBarridoActividad', () => {
       Dispositivos: [
         { Usuario: 'enc1', DispositivoId: 'abc', Alias: 'Dispositivo A', Modelo: 'SM-A12', AppVersion: '1.17.0', Encuestas: 5, Primera: '2026-11-01T14:00:00Z', Ultima: '2026-11-01T16:00:00Z', Lat: 12.1, Lng: -86.2 },
       ],
-      Puntos: [{ Cuenta: 1234, Catastro: 'C-1', Alias: 'Dispositivo A', Fecha: '2026-11-01T14:00:00Z', Lat: 12.1, Lng: -86.2 }],
+      Puntos: [{ ReferenciaId: 203405, Cuenta: 1234, Catastro: 'C-1', Alias: 'Dispositivo A', Fecha: '2026-11-01T14:00:00Z', Lat: 12.1, Lng: -86.2 }],
     })
     expect(data.resumen).toEqual({ encuestas: 5, hoy: 2, dispositivos: 1 })
     expect(data.porDia).toEqual([{ fecha: '2026-11-01', dispositivo: 'Dispositivo A', cantidad: 5 }])
@@ -49,7 +49,7 @@ describe('mapBarridoActividad', () => {
       usuario: 'enc1', dispositivoId: 'abc', alias: 'Dispositivo A', modelo: 'SM-A12', appVersion: '1.17.0',
       cantidad: 5, primera: '2026-11-01T14:00:00Z', ultima: '2026-11-01T16:00:00Z', lat: 12.1, lng: -86.2,
     })
-    expect(data.puntos[0]).toEqual({ cuenta: '1234', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T14:00:00Z', lat: 12.1, lng: -86.2 })
+    expect(data.puntos[0]).toEqual({ referenciaId: '203405', cuenta: '1234', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T14:00:00Z', lat: 12.1, lng: -86.2 })
   })
 
   it('guards missing arrays, nulls and a missing resumen', () => {

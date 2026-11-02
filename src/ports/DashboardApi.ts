@@ -4,6 +4,7 @@ import type {
   ActividadEvento,
   BarridoActividad,
   BarridoAsignacion,
+  BarridoEncuestaDetalle,
   BarridoPendiente,
   ServiciosNuevos,
   CatalogOption,
@@ -60,6 +61,10 @@ export interface DashboardApi {
     assignment: { usrId: string; cliBarridoId: string; periodo: string },
     signal?: AbortSignal,
   ): Promise<BarridoPendiente[]>
+  /** Detail of one Barrido survey (id = referenciaId of the activity point). Out of scope: ForbiddenError. */
+  barridoEncuesta(id: string, signal?: AbortSignal): Promise<BarridoEncuestaDetalle>
+  /** The photo of a survey as an image blob (fetched with the session token). No photo: NotFoundError. */
+  barridoEncuestaFoto(id: string, signal?: AbortSignal): Promise<Blob>
   serviciosNuevos(filters: Filters, signal?: AbortSignal): Promise<ServiciosNuevos>
   mapPoints(filters: Filters): Promise<MapPoint[]>
   changes(filters: Filters, page: number, pageSize: number): Promise<Page<ChangeRow>>

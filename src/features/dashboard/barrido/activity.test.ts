@@ -126,9 +126,9 @@ describe('small helpers', () => {
 
 describe('worked accounts', () => {
   const puntos = [
-    { cuenta: '100', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T10:00:00Z', lat: 1, lng: 2 },
-    { cuenta: '200', catastro: 'Ñandú-9', alias: 'Dispositivo B', fecha: '2026-11-01T12:00:00Z', lat: null, lng: null },
-    { cuenta: '300', catastro: '', alias: 'Dispositivo A', fecha: '2026-10-31T09:00:00Z', lat: 1, lng: 2 },
+    { referenciaId: '9100', cuenta: '100', catastro: 'C-1', alias: 'Dispositivo A', fecha: '2026-11-01T10:00:00Z', lat: 1, lng: 2 },
+    { referenciaId: '9200', cuenta: '200', catastro: 'Ñandú-9', alias: 'Dispositivo B', fecha: '2026-11-01T12:00:00Z', lat: null, lng: null },
+    { referenciaId: '9300', cuenta: '300', catastro: '', alias: 'Dispositivo A', fecha: '2026-10-31T09:00:00Z', lat: 1, lng: 2 },
   ]
 
   it('sorts newest first and keeps the map point index', () => {
