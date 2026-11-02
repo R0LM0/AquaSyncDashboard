@@ -115,4 +115,10 @@ describe('mapActividadEvento', () => {
       modulo: 'barrido', usuario: 'u', ugestionId: '4', sucursalId: null,
     })
   })
+
+  it('maps the camelCase payload SignalR sends from the API', () => {
+    expect(mapActividadEvento({ modulo: 'servicio_nuevo', usuario: 'jperez', idUgestion: 10, idSucursal: 6 })).toEqual({
+      modulo: 'servicio_nuevo', usuario: 'jperez', ugestionId: '10', sucursalId: '6',
+    })
+  })
 })

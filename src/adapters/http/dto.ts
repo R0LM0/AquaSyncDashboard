@@ -637,6 +637,11 @@ export interface ActividadEventoDto {
   Usuario?: string | null
   IdUgestion?: number | string | null
   IdSucursal?: number | string | null
+  // SignalR serializes hub payloads in camelCase.
+  modulo?: string | null
+  usuario?: string | null
+  idUgestion?: number | string | null
+  idSucursal?: number | string | null
 }
 
 /** The wire day may carry a time; the dashboard groups by the calendar day. */
@@ -743,11 +748,14 @@ export function mapServiciosNuevos(dto: ServiciosNuevosDto | null | undefined): 
   }
 }
 
+const idOrNull = (value: number | string | null | undefined): string | null =>
+  value == null ? null : String(value)
+
 export function mapActividadEvento(dto: ActividadEventoDto): ActividadEvento {
   return {
-    modulo: dto.Modulo ?? '',
-    usuario: dto.Usuario ?? '',
-    ugestionId: dto.IdUgestion == null ? null : String(dto.IdUgestion),
-    sucursalId: dto.IdSucursal == null ? null : String(dto.IdSucursal),
+    modulo: dto.Modulo ?? dto.modulo ?? '',
+    usuario: dto.Usuario ?? dto.usuario ?? '',
+    ugestionId: idOrNull(dto.IdUgestion ?? dto.idUgestion),
+    sucursalId: idOrNull(dto.IdSucursal ?? dto.idSucursal),
   }
 }
