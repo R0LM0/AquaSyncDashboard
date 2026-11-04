@@ -62,7 +62,7 @@ describe('MapPanel layers popover', () => {
     expect(popover).toHaveTextContent('Catastro')
     expect(popover).toHaveTextContent('Trabajo de campo')
     expect(screen.getByRole('radio', { name: 'OpenStreetMap' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Satélite' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Satélite (Google)' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Cambios' })).toBeInTheDocument()
   })
 
@@ -81,7 +81,7 @@ describe('MapPanel layers popover', () => {
     openPopover()
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Cambios' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Satélite' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Satélite (Google)' }))
 
     const stored = readMapPreferences()
     expect(stored.visible.cambios).toBe(false)
@@ -93,7 +93,7 @@ describe('MapPanel layers popover', () => {
     openPopover()
 
     expect(await screen.findByRole('checkbox', { name: 'Cambios' })).not.toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Satélite' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Satélite (Google)' })).toBeChecked()
   })
 
   it('disables the lots layer below zoom 15 and explains why', async () => {

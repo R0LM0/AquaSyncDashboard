@@ -17,9 +17,11 @@ export const BASE_LAYERS = {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '© OpenStreetMap contributors',
   },
+  // Same Google hybrid imagery (satellite + street labels) as the SIGIL web map,
+  // so field and office users recognise the same picture.
   satellite: {
-    name: 'Satélite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles © Esri',
+    name: 'Satélite (Google)',
+    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    attribution: 'Imágenes © Google',
   },
 } as const
