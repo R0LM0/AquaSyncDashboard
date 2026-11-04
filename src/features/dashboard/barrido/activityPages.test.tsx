@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALCANCE_PAIS } from '@/domain/alcance'
 import App from '@/App'
 import { DashboardApiProvider } from '@/app/DashboardApiProvider'
@@ -20,6 +20,18 @@ function renderAt(path: string, api = new MockDashboardApi({ today: new Date(202
 }
 
 const SLOW = { timeout: 5000 }
+
+// The default filters start from the current date; pin it to the mock dataset's
+// day so the pages do not go empty as the calendar moves on. Only Date is faked:
+// real timers keep findBy/waitFor polling.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 10, 1, 12))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('Barrido page', () => {
   beforeEach(() => {
